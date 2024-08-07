@@ -1,0 +1,4 @@
+CREATE TABLE state (
+    state_id INT AUTO_INCREMENT PRIMARY KEY,
+    state_name VARCHAR(100) UNIQUE NOT NULL
+);
