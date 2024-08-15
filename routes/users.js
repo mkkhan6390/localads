@@ -5,20 +5,38 @@ const db = require("../data");
 
 const getCurrentTimestamp = () => new Date().toISOString().slice(0, 19).replace("T", " ");
 
+//FUNCTION TO AUTHENTICATE USERNAME AND ASSOCIATED PASSWORD
 const authenticateuser = (req, res, next) => {
 
     const username = req.body.username;
-    const inputpassword = req.body.password;
-    
-    const selectquery = `select id, password from user where username = ?`;
-	const user = db.query(selectquery, [username])[0];
-	const authenticated = bcrypt.compareSync(inputpassword, user?.password || "");
+    const inputpassword = req.body.password; 
 
-	if (!user || !authenticated) return res.status(400).send("Unauthorized request");
-    next()
+	if(!username || !inputpassword)
+		return res.status(422).send("Unauthorized request! Please provide credentials to proceed.")
+
+    const selectquery = `select id, password from users where username = ?`;
+	
+	db.query(selectquery, [username])
+	.then(result => {
+		
+		const user = result[0]
+		const authenticated = bcrypt.compareSync(inputpassword, user?.password || "");
+
+		if (!user || !authenticated)
+			return res.status(400).send("Unauthorized request");
+		
+		req.body.userid = user.id
+		next()
+	}).catch(error => {
+		return res.status(422).send("Unable to authenticate user!!!");
+	});
+	
 }
 
+router.get('/', (req, res) => res.send("user route is running"))
+
 router.post("/create", (req, res) => {
+	console.log("creating user")
 	const {username, password, email, phone} = req.body;
 	if (!username || !password || !email || !phone) return res.status(403).send("Missing required fields");
 
@@ -75,7 +93,7 @@ router.delete("/:id", authenticateuser, (req, res) => {
 });
 
 
-router.put("/email/:id", authenticateuser, (req, res) => {
+router.patch("/email/:id", authenticateuser, (req, res) => {
 
 	const id = req.params.id;
 	const email = req.body.email;
@@ -94,19 +112,21 @@ router.put("/email/:id", authenticateuser, (req, res) => {
 });
 
 
-router.put('/password/:id', authenticateuser, (req, res) => {
+router.patch('/password/:id', authenticateuser, (req, res) => {
 
     const id = req.params.id;
     const newpassword = req.body.newpassword;
-   
+	const salt = bcrypt.genSaltSync();
+	const hashednewPassword = bcrypt.hashSync(newpassword, salt);
     const modifieddate = getCurrentTimestamp();
-    const updatequery = `update users set password=?, modifiedtime=? where id=?`
-    const params = [newpassword, modifieddate, id]
-
+	
+    const updatequery = `update users set password=?, modifieddate=? where id=?`
+    const params = [hashednewPassword, modifieddate, id]
+	
     db.query(updatequery, params)
     .then(result => {
         if (result.affectedRows === 0) return res.status(404).send("new password cannot be same as previous one");
-        res.status(200).send("password successfully");
+        res.status(200).send("password successfully changed");
     })
     .catch(error => {
         return res.status(500).json({error: error.message});
@@ -115,7 +135,7 @@ router.put('/password/:id', authenticateuser, (req, res) => {
 })
 
 
-app.get("/genkey", authenticateuser, (req, res) => { 
+router.get("/genkey", authenticateuser, (req, res) => { 
     
     const apiKey = bcrypt.hashSync(crypto.randomBytes(16).toString("hex"), 10);
 	const query = "Update users set apikey = ? where id = ?";
