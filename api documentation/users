@@ -1,0 +1,45 @@
+// to create user.
+method: 'POST',
+url: 'http://localhost:3000/user/create', 
+body: {
+  username: 'mkkhan6390',//required
+  password: 'aduser1',//required
+  email: 'mkkhan6390@gmail.com',//required
+  phone: '8291430205'//required
+}
+
+//to get details of user by their user id
+method:'GET'
+apiurl:'http://localhost:3000/user/:id'
+
+//to delete user by their user id
+method:'DELETE'
+apiurl:'http://localhost:3000/user/:id'
+body: {
+  username: 'mkkhan6390',//required
+  password: 'aduser1',//required
+}
+
+//to change email
+method:'PATCH'
+apiurl:'http://localhost:3000/user/email/:id'
+body: {
+  username: 'mkkhan6390',//required
+  password: 'aduser1',//required
+}
+
+//to change email
+method:'PATCH'
+apiurl:'http://localhost:3000/user/password/:id'
+body: {
+  username: 'mkkhan6390',//required
+  password: 'aduser1',//required
+}
+
+//to generate api key
+method:'PATCH'
+apiurl:'http://localhost:3000/user/genkey'
+body: {
+  username: 'mkkhan6390',//required
+  password: 'aduser1',//required
+}

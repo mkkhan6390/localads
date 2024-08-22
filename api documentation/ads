@@ -1,0 +1,24 @@
+//to create ad
+method: 'POST',
+url: 'http://localhost:3000/ad/create', 
+body: {
+  file : file,
+	pincode : '416520',
+	username : 'mkkhan6390',
+  password: 'Vyosim@2023',
+	title : 'title for the ad',
+	description : 'description of the ad', 
+	level : 1, // can be 1-4
+	type : 'image' // can be 'image', 'video' or 'audio'
+}
+
+//to get ads relevant to a pincode
+method: 'GET',
+url: 'http://localhost:3000/ad/create',
+headers : { 
+  "api-key":'api_key_string'
+},
+queryAttributes : {
+  username: 'username'
+  pincode : 'pincode of the ad viewer'
+}

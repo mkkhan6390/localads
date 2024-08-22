@@ -6,10 +6,8 @@ const ad = require('./routes/ads')
 const app = express();
 app.use(bodyParser.json());
 
-
 app.use('/user', user)
 app.use('/ad', ad)
-
 
 app.get('/', (req, res) => res.send("Server is running"))
 

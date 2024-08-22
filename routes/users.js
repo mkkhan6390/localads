@@ -2,36 +2,8 @@ const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
 const db = require("../data");
-
+const {authenticateuser} = require('../utils/authentication')
 const getCurrentTimestamp = () => new Date().toISOString().slice(0, 19).replace("T", " ");
-
-//FUNCTION TO AUTHENTICATE USERNAME AND ASSOCIATED PASSWORD
-const authenticateuser = (req, res, next) => {
-
-    const username = req.body.username;
-    const inputpassword = req.body.password; 
-
-	if(!username || !inputpassword)
-		return res.status(422).send("Unauthorized request! Please provide credentials to proceed.")
-
-    const selectquery = `select id, password from users where username = ?`;
-	
-	db.query(selectquery, [username])
-	.then(result => {
-		
-		const user = result[0]
-		const authenticated = bcrypt.compareSync(inputpassword, user?.password || "");
-
-		if (!user || !authenticated)
-			return res.status(400).send("Unauthorized request");
-		
-		req.body.userid = user.id
-		next()
-	}).catch(error => {
-		return res.status(422).send("Unable to authenticate user!!!");
-	});
-	
-}
 
 router.get('/', (req, res) => res.send("user route is running"))
 
@@ -49,8 +21,8 @@ router.post("/create", (req, res) => {
 	const salt = bcrypt.genSaltSync();
 	const hashedPassword = bcrypt.hashSync(password, salt);
 
-	const query = `INSERT INTO users (username, password, salt, email, phone, createddate, modifieddate) VALUES ( ?, ?, ?, ?, ?, ?, ?)`;
-	const params = [username, hashedPassword, salt, email, phone, createddate, modifieddate];
+	const query = `INSERT INTO users (username, password, email, phone, createddate, modifieddate) VALUES ( ?, ?, ?, ?, ?, ?, ?)`;
+	const params = [username, hashedPassword, email, phone, createddate, modifieddate];
 
 	db.query(query, params)
 		.then(result => {
@@ -92,7 +64,6 @@ router.delete("/:id", authenticateuser, (req, res) => {
 		});
 });
 
-
 router.patch("/email/:id", authenticateuser, (req, res) => {
 
 	const id = req.params.id;
@@ -110,7 +81,6 @@ router.patch("/email/:id", authenticateuser, (req, res) => {
 			return res.status(500).json({error: error.message});
 		});
 });
-
 
 router.patch('/password/:id', authenticateuser, (req, res) => {
 
@@ -134,17 +104,17 @@ router.patch('/password/:id', authenticateuser, (req, res) => {
 
 })
 
-
-router.get("/genkey", authenticateuser, (req, res) => { 
+router.patch("/genkey", authenticateuser, (req, res) => { 
     
-    const apiKey = bcrypt.hashSync(crypto.randomBytes(16).toString("hex"), 10);
+	const apikey = require('crypto').randomBytes(16).toString("hex")
+    const apikeyhash = bcrypt.hashSync(apikey, 10);
 	const query = "Update users set apikey = ? where id = ?";
-	const params = [apiKey, user.id];
+	const params = [apikeyhash, req.body.userid];
 
 	db.query(query, params)
     .then(result => {
         if (result.affectedRows === 0) return res.status(404).send("User not found");
-        res.status(200).send("api key successfully generated : ", apiKey);
+        return res.status(200).send(`api key successfully generated : ${apikey}`);
     })
     .catch(error => {
         return res.status(500).json({error: error.message});
