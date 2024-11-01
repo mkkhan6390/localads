@@ -1,12 +1,13 @@
-const db = require("../data");
+const db = require("./data");
 const bcrypt = require("bcryptjs");
 
 
 //FUNCTION TO AUTHENTICATE USERNAME AND ASSOCIATED PASSWORD
-const authenticateuser = (req, res, next) => {
-	const username = req.body.username;
-	const inputpassword = req.body.password;
+const authenticateuser = (req, res, next) => { 
 
+	const username = req.query.username || req.body.username ;
+	const inputpassword = req.query.password || req.body.username ;
+	
 	if (!username || !inputpassword) return res.status(422).send("Unauthorized request! Please provide credentials to proceed.");
 
 	const selectquery = `select id, password from users where username = ?`;
@@ -18,7 +19,7 @@ const authenticateuser = (req, res, next) => {
 
 			if (!user || !authenticated) return res.status(400).send("Unauthorized request");
 
-			req.body.userid = user.id;
+			req.query.userid = user.id;
 			next();
 		})
 		.catch(error => {
@@ -30,8 +31,8 @@ const authenticateuser = (req, res, next) => {
 //FUNCTION TO AUTHENTICATE THE API KEY BEFORE PROVIDING ACCESS TO ADVERTISEMENTS
 const authenticateapikey = (req, res, next) => {
 	const username = req.query.username;
-	const inputapikey = req.headers["api-key"];
-
+	const inputapikey = req.headers["api-key"] || req.query.apikey;
+	
 	//add condition to validate username and apikey existence
 	const selectquery = `select id, apikey from users where username = ?`;
  
@@ -42,7 +43,7 @@ const authenticateapikey = (req, res, next) => {
 
 			if (!user || !authenticated) return res.status(400).send("Unauthorized request!!! Please provide a valid apikey");
 
-			req.body.userid = user.id;
+			req.query.userid = user.id;
 			next();
 		})
 		.catch(error => {

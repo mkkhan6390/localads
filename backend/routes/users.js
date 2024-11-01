@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
-const db = require("../data");
+const db = require("../utils/data");
 const {authenticateuser} = require('../utils/authentication')
 const getCurrentTimestamp = () => new Date().toISOString().slice(0, 19).replace("T", " ");
 
@@ -34,7 +34,7 @@ router.post("/create", (req, res) => {
 		});
 });
 
-router.get("/:id", (req, res) => {
+router.get("/getuser/:id", (req, res) => {
 	const query = `SELECT username, email, phone, createddate, modifieddate, isactive FROM users WHERE id = ?`;
 	const params = [req.params.id];
 
@@ -49,7 +49,7 @@ router.get("/:id", (req, res) => {
 		});
 });
 
-router.delete("/:id", authenticateuser, (req, res) => {
+router.delete("/detele/:id", authenticateuser, (req, res) => {
 
 	const query = `Update users set isactive=0 where id=?`;
 	const params = req.params.id;
@@ -105,7 +105,7 @@ router.patch('/password/:id', authenticateuser, (req, res) => {
 })
 
 router.patch("/genkey", authenticateuser, (req, res) => { 
-    
+	
 	const apikey = require('crypto').randomBytes(16).toString("hex")
     const apikeyhash = bcrypt.hashSync(apikey, 10);
 	const query = "Update users set apikey = ? where id = ?";

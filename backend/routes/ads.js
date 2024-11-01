@@ -4,10 +4,19 @@ const multer = require("multer");
 const path = require("path");
 const axios = require("axios");
 const fs = require("fs");
-const db = require("../data");
+const db = require("../utils/data");
 const {authenticateuser, authenticateapikey} = require('../utils/authentication')
 const {getpincodedetails, getAdsByRegion} = require('../utils/functions')
  
+// Sample ad data
+const sampleAd = {
+	ad_image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Cat_August_2010-4.jpg/1200px-Cat_August_2010-4.jpg',
+	ad_link: 'https://example.com',
+	width: 150,
+	height: 150
+};
+  
+
 const storage = multer.diskStorage({
 	destination: (req, file, cb) => {
 		cb(null, "uploads/");
@@ -73,6 +82,36 @@ router.post("/create", upload.single("file"), authenticateuser, getpincodedetail
 		});
 });
 
-router.get("/getads", authenticateapikey, getAdsByRegion );
+router.get("/getads", authenticateapikey, getAdsByRegion, async (req, res) => {
+	console.log('.....')
+	console.log(req.body.ads)
+	res.setHeader('Content-Type', 'application/javascript');
+	
+	res.send(`
+	  (function() {  
+		 let adContainer = document.getElementById('ad-container'); 
+		 if (!adContainer) {
+			 adContainer = document.createElement('div'); 
+			 adContainer.id = 'ad-container';
+			 adContainer.style.position = 'fixed';
+			 adContainer.style.top = '0';
+			 adContainer.style.width = '${sampleAd.width}px';
+			 adContainer.style.height = '${sampleAd.height}px';
+			 adContainer.style.backgroundColor = '#f0f0f0';
+			 adContainer.style.zIndex = '1000';
+			 document.body.appendChild(adContainer); 
+		 } 
+		 adContainer.innerHTML = \`
+			<a href="${sampleAd.ad_link}" target="_blank"> 
+				<img 
+					src="${sampleAd.ad_image}" 
+					width="${sampleAd.width}" 
+					height="${sampleAd.height}" 
+					style="display: block; margin: auto;"
+				/>
+			</a>\`; 
+	  })();
+	`);
+} );
 
 module.exports = router;

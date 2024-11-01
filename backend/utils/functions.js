@@ -79,7 +79,9 @@ const getAdsByRegion = async (req, res, next) => {
     //use region details to find the relevant ads
 	try {
 		ads = await db.query(query_sel_ad, [cityid, districtid, stateid, countryid]);
-        return res.status(200).send(ads)
+		req.body.ads = ads;
+		next();
+        // return res.status(200).send(ads)
 	} catch (error) {
 		console.error("Error fetching ads:", error);
 		return res.status(500).json({message: "Internal Server Error"});
