@@ -6,7 +6,7 @@ const bcrypt = require("bcryptjs");
 const authenticateuser = (req, res, next) => { 
 
 	const username = req.query.username || req.body.username ;
-	const inputpassword = req.query.password || req.body.username ;
+	const inputpassword = req.query.password || req.body.password ;
 	
 	if (!username || !inputpassword) return res.status(422).send("Unauthorized request! Please provide credentials to proceed.");
 
@@ -16,10 +16,11 @@ const authenticateuser = (req, res, next) => {
 		.then(result => {
 			const user = result[0];
 			const authenticated = bcrypt.compareSync(inputpassword, user.password);
-
+			
 			if (!user || !authenticated) return res.status(400).send("Unauthorized request");
 
 			req.query.userid = user.id;
+			console.log('authorized')
 			next();
 		})
 		.catch(error => {

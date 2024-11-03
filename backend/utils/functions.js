@@ -1,6 +1,5 @@
 const db = require("./data");
 
-
 const query_sel_region = `
 	SELECT 
         c.id AS cityId,
@@ -35,6 +34,7 @@ const getpincodedetails = (req, res, next) => {
 			req.body.districtid = region.districtId;
 			req.body.stateid = region.stateId;
 			req.body.countryid = region.countryId;
+			console.log(req.body)
 			next();
 		})
 		.catch(error => {
@@ -52,13 +52,7 @@ const getAdsByRegion = async (req, res, next) => {
 	let region;
     let ads = []
 
-	const query_sel_ad = `
-	select * from ads
-	where (cityid = ?) 
-	or (districtid = ? and display_level >=2 ) 
-	or (stateid = ? and display_level >= 3 ) 
-	or (countryid = ? and display_level >= 4 )
-	`;
+	const query_sel_ad = `CALL getad(?, ?, ?, ?)`;
 	
     //get region details using the pincode
 	try {
@@ -78,7 +72,7 @@ const getAdsByRegion = async (req, res, next) => {
 
     //use region details to find the relevant ads
 	try {
-		ads = await db.query(query_sel_ad, [cityid, districtid, stateid, countryid]);
+		ads = (await db.query(query_sel_ad, [cityid, districtid, stateid, countryid]))[0];
 		req.body.ads = ads;
 		next();
         // return res.status(200).send(ads)
