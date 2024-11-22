@@ -1,7 +1,8 @@
 import React from 'react'; 
+import axios from 'axios'
 import { useState } from 'react';
-import LoginLogo from 'react-login-page/logo-rect';
 import LoginPage, {Logo, Footer, Username, Password, Submit } from '@react-login-page/page8';
+import { useNavigate } from "react-router-dom";
 import logo from './Naav logo.svg'
 
 
@@ -9,6 +10,8 @@ import logo from './Naav logo.svg'
 const Login = () => {
 
   const [logindata, setLogindata] = useState({username:'', password:''})
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   const handInputData = event =>{
     setLogindata(data => {
@@ -17,9 +20,21 @@ const Login = () => {
     }) 
   }
 
-  const handleSubmit = () =>{
+  const handleSubmit = async () =>{
+
     console.log(logindata)
-    console.log('submitted')
+    try {
+
+      const response = await axios.post("http://localhost:5000/user/login", logindata);
+      
+      localStorage.setItem("token", response.data.token);
+      navigate("/dashboard");
+
+    } catch (err) {
+      alert("Login Failed!!! Username/Password Incorrect")
+      setError("Invalid credentials. Please try again.");
+    }
+    
   }
 
   return (

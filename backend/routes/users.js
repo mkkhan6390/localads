@@ -2,10 +2,21 @@ const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
 const db = require("../utils/data");
+const jwt = require("jsonwebtoken");
+require('dotenv').config()
+
 const {authenticateuser} = require('../utils/authentication')
 const getCurrentTimestamp = () => new Date().toISOString().slice(0, 19).replace("T", " ");
+const SECRET_KEY = process.env.SECRET_KEY
 
 router.get('/', (req, res) => res.send("user route is running"))
+
+router.post("/login", authenticateuser, (req, res) => {
+	console.log('attempt to login for user', req.body.username)
+	const token = jwt.sign({id: req.body.userid, username: req.body.username}, SECRET_KEY, {expiresIn: "1h"});
+	console.log('sent token:', token)
+	return res.json({token});
+});
 
 router.post("/create", (req, res) => {
 	console.log("creating user")
