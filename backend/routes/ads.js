@@ -96,6 +96,14 @@ router.post("/create", upload.single("file"), authenticateuser, getpincodedetail
 	
 });
 
+router.get("/myads", authenticateuser, async (req, res) => {
+	
+	const userid = req.body.id
+	const query = `select * from ads where owner_id = ?`
+	const ads = await db.query(query, [userid]) 
+	res.json(ads)
+})
+
 
 router.get("/getads", authenticateapikey, getAdsByRegion, async (req, res) => { 
 

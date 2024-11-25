@@ -9,42 +9,54 @@ const SECRET_KEY = process.env.SECRET_KEY;
 const authenticateuser = (req, res, next) => {
 	const authHeader = req.headers.authorization;
 	const username = req.query.username || req.body.username;
-	const inputpassword = req.query.password || req.body.password;
+	const inputPassword = req.query.password || req.body.password;
 
-	if ((!username || !inputpassword) && !authHeader) return res.status(401).send("Unauthorized request! Please provide credentials or a Valid Token to proceed.");
+	if ((!username || !inputPassword) && !authHeader) {
+		return res.status(401).send("Unauthorized request! Please provide credentials or a valid token to proceed.");
+	}
 
-	const selectquery = `select id, password from users where username = ?`;
+	const selectQuery = `SELECT id, password FROM users WHERE username = ?`;
 
 	if (authHeader) {
 		const token = authHeader.split(" ")[1];
 		try {
-			const user = jwt.verify(token, SECRET_KEY);
-			req.user = user;
-			next();
+			console.log('dashboard token:', token)
+			req.user = jwt.verify(token, SECRET_KEY);
+			req.query.userid = req.body.userid = req.user.id;
+			return next();
 		} catch (err) {
-			res.status(403).send("Invalid Token");
+			console.log(err)
+			return res.status(403).send("Invalid Token");
 		}
 	}
 
-	if (username && inputpassword) {
-		db.query(selectquery, [username])
-			.then(result => {
-				const user = result[0];
-				const authenticated = bcrypt.compareSync(inputpassword, user.password);
 
-				if (!user || !authenticated) return res.status(400).send("Unauthorized request");
+	if (username && inputPassword) {
+		return db.query(selectQuery, [username])
+			.then((result) => {
+				if (result.length === 0) {
+					return res.status(401).send("Unauthorized request: User not found");
+				}
+				const user = result[0];
+				const authenticated = bcrypt.compareSync(inputPassword, user.password);
+
+				if (!authenticated) {
+					return res.status(401).send("Unauthorized request: Invalid credentials");
+				}
 
 				req.query.userid = req.body.userid = user.id;
-				next();
+				return next();
 			})
-			.catch(error => {
-				console.log(error);
-				return res.status(401).send("Unable to authenticate user!!!");
+			.catch((error) => {
+				console.error(error);
+				return res.status(500).send("Internal Server Error: Unable to authenticate user");
 			});
 	}
 
-	return res.status(422).send("Unexpected Server Error!!!");
+	
+	return res.status(500).send("Unexpected Server Error");
 };
+
 
 //FUNCTION TO AUTHENTICATE THE API KEY BEFORE PROVIDING ACCESS TO ADVERTISEMENTS
 const authenticateapikey = (req, res, next) => {

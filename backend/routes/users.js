@@ -12,9 +12,8 @@ const SECRET_KEY = process.env.SECRET_KEY
 router.get('/', (req, res) => res.send("user route is running"))
 
 router.post("/login", authenticateuser, (req, res) => {
-	console.log('attempt to login for user', req.body.username)
 	const token = jwt.sign({id: req.body.userid, username: req.body.username}, SECRET_KEY, {expiresIn: "1h"});
-	console.log('sent token:', token)
+	console.log('login token:', token)
 	return res.json({token});
 });
 

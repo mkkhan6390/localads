@@ -1,22 +1,22 @@
 const express = require("express");
-const router = express.Router();
-const jwt = require("jsonwebtoken");
+const router = express.Router(); 
 require('dotenv').config()
+const {authenticateuser} = require('../utils/authentication')
+const db = require('../utils/data')
 
-const SECRET_KEY = process.env.SECRET_KEY;
+router.get("/", authenticateuser, async (req, res) => {
 
-router.get("/", (req, res) => {
-	const authHeader = req.headers.authorization;
-	if (!authHeader) return res.status(401).send("Access Denied");
+	try { 
+		const userid = req.query.userid;
+		const user = req.user; 
+		const query = `select * from vw_ads where owner_id = ?`
+		const ads = await db.query(query, [userid]) 
+ 
+		res.json({username: user.username, ads});
 
-	const token = authHeader.split(" ")[1];
-
-	try {
-		const user = jwt.verify(token, SECRET_KEY);
-		
-		res.json({username: user.username});
 	} catch (err) {
-		res.status(403).send("Invalid Token");
+		console.log(err)
+		res.status(422).send("Unexpected Server Error!!! Please try Again");
 	}
 });
 
