@@ -4,6 +4,7 @@ CREATE TABLE `users` (
   `password` varchar(60) NOT NULL,
   `email` varchar(255) NULL,
   `phone` varchar(20) NOT NULL,
+  `key` varchar(255) NOT NULL,
   `createddate` datetime NOT NULL,
   `modifieddate` datetime NOT NULL,
   `isactive` bit(0) DEFAULT 1

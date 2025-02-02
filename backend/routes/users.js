@@ -44,6 +44,7 @@ router.post("/create", (req, res) => {
 		});
 });
 
+//add authentication to let only admins access this api
 router.get("/getuser/:id", (req, res) => {
 	const query = `SELECT username, email, phone, createddate, modifieddate, isactive FROM users WHERE id = ?`;
 	const params = [req.params.id];

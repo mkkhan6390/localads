@@ -1,3 +1,15 @@
+//to login
+method: 'POST',
+url: 'http://localhost:3000/user/login'
+body: {
+    username:'USER_NAME',// optional if JWT_TOKEN is passed
+    password:'USER_PASSWORD'// optional if JWT_TOKEN is passed
+}
+headers: {
+  authorization: 'JWT_TOKEN'//optional if USER_NAME and USER_PASSWORD is passed
+}
+
+
 // to create user.
 method: 'POST',
 url: 'http://localhost:3000/user/create', 
@@ -8,38 +20,59 @@ body: {
   phone: '8291430205'//required
 }
 
+
 //to get details of user by their user id
+// only admins can access
 method:'GET'
 apiurl:'http://localhost:3000/user/:id'
+headers: {
+  authorization: 'JWT_TOKEN'//required
+}
+
 
 //to delete user by their user id
 method:'DELETE'
 apiurl:'http://localhost:3000/user/:id'
 body: {
-  username: 'mkkhan6390',//required
-  password: 'aduser1',//required
+    username:'USER_NAME',// optional if JWT_TOKEN is passed
+    password:'USER_PASSWORD'// optional if JWT_TOKEN is passed
 }
+headers: {
+  authorization: 'JWT_TOKEN'//optional if USER_NAME and USER_PASSWORD is passed
+}
+
 
 //to change email
 method:'PATCH'
 apiurl:'http://localhost:3000/user/email/:id'
 body: {
-  username: 'mkkhan6390',//required
-  password: 'aduser1',//required
+    username:'USER_NAME',// optional if JWT_TOKEN is passed
+    password:'USER_PASSWORD'// optional if JWT_TOKEN is passed
 }
+headers: {
+  authorization: 'JWT_TOKEN'//optional if USER_NAME and USER_PASSWORD is passed
+}
+
 
 //to change email
 method:'PATCH'
 apiurl:'http://localhost:3000/user/password/:id'
 body: {
-  username: 'mkkhan6390',//required
-  password: 'aduser1',//required
+    username:'USER_NAME',// optional if JWT_TOKEN is passed
+    password:'USER_PASSWORD'// optional if JWT_TOKEN is passed
 }
+headers: {
+  authorization: 'JWT_TOKEN'//optional if USER_NAME and USER_PASSWORD is passed
+}
+
 
 //to generate api key
 method:'PATCH'
 apiurl:'http://localhost:3000/user/genkey'
 body: {
-  username: 'mkkhan6390',//required
-  password: 'aduser1',//required
+    username:'USER_NAME',// optional if JWT_TOKEN is passed
+    password:'USER_PASSWORD'// optional if JWT_TOKEN is passed
+}
+headers: {
+  authorization: 'JWT_TOKEN'//optional if USER_NAME and USER_PASSWORD is passed
 }
