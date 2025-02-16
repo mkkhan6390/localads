@@ -42,7 +42,9 @@ const getpincodedetails = (req, res, next) => {
 		});
 };
 
-
+const isValidLandingPageUrl = landingurl =>{ 
+	return landingurl && (landingurl.startsWith('http') || landingurl.startsWith('wa.me') || landingurl.startsWith('tel:'))
+}
 
 //FUNCTION TO GET ADS BY REGION
 const getAdsByRegion = async (req, res, next) => {
@@ -84,4 +86,4 @@ const getAdsByRegion = async (req, res, next) => {
 };
 
 
-module.exports = {getpincodedetails, getAdsByRegion}
+module.exports = {getpincodedetails, getAdsByRegion, isValidLandingPageUrl}

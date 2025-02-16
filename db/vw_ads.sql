@@ -13,6 +13,7 @@ VIEW `ads`.`vw_ads` AS
         `a`.`clicks` AS `clicks`,
         `a`.`lastcalled` AS `lastcalled`,
         `a`.`remaining` AS `remaining`,
+        CAST(`a`.`isactive` AS SIGNED) AS `isactive`,
         `c`.`name` AS `city`,
         `d`.`name` AS `district`,
         `s`.`name` AS `state`,

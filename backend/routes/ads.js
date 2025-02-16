@@ -7,7 +7,7 @@ const FormData = require('form-data');
 const fs = require("fs");
 const db = require("../utils/data");
 const {authenticateuser, authenticateapikey} = require('../utils/authentication')
-const {getpincodedetails, getAdsByRegion} = require('../utils/functions')
+const {getpincodedetails, getAdsByRegion, isValidLandingPageUrl} = require('../utils/functions')
 require('dotenv').config()
 
 const imgbbKey = process.env.IMGBB_KEY;
@@ -35,6 +35,7 @@ const upload = multer({storage: storage});
 
 // POST CALL TO UPLOAD AND CREATE AN ADVERTISEMENT
 router.post("/create", upload.single("file"), authenticateuser, getpincodedetails, async (req, res) => {
+	
 	const file = req.file;
 	const cityid = req.body.cityid;
 	const districtid = req.body.districtid;
@@ -81,7 +82,7 @@ router.post("/create", upload.single("file"), authenticateuser, getpincodedetail
 	}
 
 
-	const insertquery = `INSERT INTO ads(owner_id, title, description, pincode, cityid, districtid, stateid, countryid, display_level, type, url, added_date) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+	const insertquery = `INSERT INTO ads(owner_id, title, description, pincode, cityid, districtid, stateid, countryid, display_level, type, ad_url, added_date) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 	const params = [userid, adtitle, addesc, pincode, cityid, districtid, stateid, countryid, displaylevel, type, fileurl, date];
 	console.log(params)
 	await db
@@ -104,6 +105,25 @@ router.get("/myads", authenticateuser, async (req, res) => {
 	res.json(ads)
 })
 
+router.get("/activate", authenticateuser, async (req, res) => {
+	
+	const updatequery = `update ads set landing_url = ?, isactive=1 where id = ?`
+	const adId = req.query.id;
+	const landingurl = req.query.landingurl 
+
+	if(!isValidLandingPageUrl(landingurl)){
+		return res.json({message:"Valid Landing Page Url is required"})
+	}
+
+	try {
+		await db.query(updatequery, [landingurl, adId])
+		return res.json({message:"Ad was Successfully activated!"})
+	} catch (error) {
+		console.log(error)
+		return res.json({message:"Error while activating Ad!"})
+	}
+
+})
 
 router.get("/getads", authenticateapikey, getAdsByRegion, async (req, res) => { 
 

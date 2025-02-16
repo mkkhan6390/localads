@@ -10,8 +10,7 @@ router.get("/", authenticateuser, async (req, res) => {
 		const userid = req.query.userid;
 		const user = req.user; 
 		const query = `select * from vw_ads where owner_id = ?`
-		const ads = await db.query(query, [userid]) 
- 
+		const ads = await db.query(query, [userid])
 		res.json({username: user.username, ads});
 
 	} catch (err) {

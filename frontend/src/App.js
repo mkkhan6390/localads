@@ -1,5 +1,6 @@
 import "./App.css";
 import 'bootstrap/dist/css/bootstrap.css';
+import "bootstrap-icons/font/bootstrap-icons.css";
 import {BrowserRouter as Router, Route, Routes, Navigate} from "react-router-dom";
 import Login from "./login";
 import Dashboard from "./dashboard";

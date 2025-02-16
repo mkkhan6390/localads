@@ -11,10 +11,12 @@ CREATE TABLE `ads` (
   `description` text NOT NULL,
   `pincode` varchar(6) NOT NULL,
   `type` enum('image','video','audio') NOT NULL,
-  `url` varchar(255) NOT NULL,
+  `ad_url` varchar(255) NOT NULL,
+  `landing_url` varchar(255) DEFAULT '', -- need a default landing page
   `views` int DEFAULT '0',
   `clicks` int DEFAULT '0', 
   `lastcalled` datetime DEFAULT NULL,
   `remaining` int DEFAULT '0',
+  `isactive` bit(1) DEFAULT '0'
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
