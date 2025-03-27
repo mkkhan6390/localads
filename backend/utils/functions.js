@@ -1,4 +1,5 @@
 const db = require("./data");
+const axios = require('axios')
 
 const query_sel_region = `
 	SELECT 
@@ -49,7 +50,11 @@ const isValidLandingPageUrl = landingurl =>{
 //FUNCTION TO GET ADS BY REGION
 const getAdsByRegion = async (req, res, next) => {
 	
-	const pincode = req.query.pincode;
+	const latitude = req.query.latitude;
+	const longitude = req.query.longitude;
+	const location = await axios.get(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`)
+	const pincode = location.address.postcode
+	
 	let cityid, districtid, stateid, countryid;
 	let region;
     let ads = []

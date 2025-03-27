@@ -125,13 +125,15 @@ router.get("/activate", authenticateuser, async (req, res) => {
 
 })
 
-router.get("/getads", authenticateapikey, getAdsByRegion, async (req, res) => { 
+router.get("/getad", authenticateapikey, getAdsByRegion, async (req, res) => { 
 
 	const ad = req.body.ads[0] || sampleAd;
 	console.log(ad)
 
 	res.setHeader('Content-Type', 'application/javascript');
 	
+	
+	//Need to update the views for the fetched ad. need to add time, appid, user ip address and location of the view in mongodb
 	//anchor href should be the link where we want to redirect the adclick
 	//the href should be an api call to our server which will increment the click count of that add and then return the link to the details page of the ad
 	// consider taking an input for the position and size of the ad or atleast having default options
@@ -150,9 +152,8 @@ router.get("/getads", authenticateapikey, getAdsByRegion, async (req, res) => {
 			 document.body.appendChild(adContainer); 
 		 } 
 		 adContainer.innerHTML = \`
-			<a href="${ad.url}" target="_blank"> 
+			<a href="${ad.url}" id="adid1100${ad.id}" target="_blank"> 
 				<img 
-					id="adid1100${ad.id}"
 					src="${ad.url}"
 					alt="${ad.title}"
 					width="500px" 
@@ -161,7 +162,16 @@ router.get("/getads", authenticateapikey, getAdsByRegion, async (req, res) => {
 				/>
 			</a>\`; 
 	  })();
+
+	  document.getElementById('adid1100${ad.id}').addEventListener('click', function(event) {
+		fetch('http://localhost:5000/ad/click', {
+      	method: 'GET'
+	  }
 	`);
 } );
+
+router.get("/click", () => {
+
+})
 
 module.exports = router;

@@ -20,7 +20,7 @@ function App() {
   return (
     <div className="App">
       <p>The adbox is below this</p>
-      <div id="ad-container"></div>
+      <div id="ad-container"></div> 
     </div>
   );
 }
