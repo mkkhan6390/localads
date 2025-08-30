@@ -1,18 +1,15 @@
-DELIMITER //
-
-CREATE PROCEDURE GetLocationDetailsByPincode(
+CREATE DEFINER=`root`@`localhost` PROCEDURE `GetLocationDetailsByPincode`(
     IN inputPincode VARCHAR(10),
     OUT cityId INT,
     OUT districtId INT,
     OUT stateId INT,
     OUT countryId INT
 )
-
 BEGIN
     DECLARE cityId INT;
     DECLARE districtId INT;
     DECLARE stateId INT;
-    DECLARE countryId INT 
+    DECLARE countryId INT ;
 
     -- Get the city_id
     SELECT city_id INTO cityId
@@ -30,8 +27,6 @@ BEGIN
     WHERE id = districtId;
 
     -- Get the country_id
-    countryId = 1
+    select 1 as countryId;
 
-END //
-
-DELIMITER ;
+END

@@ -14,34 +14,75 @@ router.get('/', (req, res) => res.send("user route is running"))
 router.post("/login", authenticateuser, (req, res) => {
 	const token = jwt.sign({id: req.body.userid, username: req.body.username}, SECRET_KEY, {expiresIn: "1h"});
 	console.log('login token:', token)
-	return res.json({token});
+	return res.json({token, userid: req.body.userid});
 });
 
-router.post("/create", (req, res) => {
+router.post("/create", async (req, res) => {
+
 	console.log("creating user")
-	const {username, password, email, phone} = req.body;
-	if (!username || !password || !email || !phone) return res.status(403).send("Missing required fields");
+	const {username, email, phone, password, confirmpassword} = req.body;
+	console.log(req.body)
 
-	//consider adding condition for case when phone pattern doesn't match
-	//consider adding condition for case when email pattern doesn't match
+	//Check if all required fields are provided
+	if (!username || !password || !confirmpassword || (!email || !phone)) return res.status(403).send("Missing required fields");
+	//Check if password and confirm password match
+	if (password !== confirmpassword) return res.status(403).send("Passwords Do Not Match!!!");
+	
+	//Validate username format (alphanumeric and underscore only, 3-20 characters)
+	const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+	if (!usernameRegex.test(username)) return res.status(403).send("Username must be 3-20 characters long and can only contain letters, numbers, and underscores");
 
+	//Validate email format
+	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return res.status(403).send("Invalid email format");
+    
+    //Validate phone number format (assuming Indian format)
+    const phoneRegex = /\d{9}$/;
+    if (!phoneRegex.test(phone)) return res.status(403).send("Invalid phone number format");
+
+	//Validate password format (at least 8 characters, one uppercase letter, one lowercase letter, one number, one special character)
+	if (password.length < 8) return res.status(403).send("Password must be at least 8 characters long");
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(password)) {
+        return res.status(403).send("Password must contain at least one uppercase letter, one lowercase letter, one number and one special character");
+    }
+
+	//Check if username already exists
+	const query_username = `SELECT * FROM users WHERE username =? or email =? or phone =?`;
+	
+	console.log(1)
+	try {
+		const users = await db.query(query_username, [username, email, phone])
+		console.log(users)
+		if (users.length > 0) 
+			return res.status(409).send("Username/Email/Phone Already Taken!!!");
+
+	} catch (error) {
+		res.status(422).send("Unable To Process Request");
+	}
+	console.log(2)
 	const createddate = getCurrentTimestamp();
 	const modifieddate = createddate;
 
 	const salt = bcrypt.genSaltSync();
 	const hashedPassword = bcrypt.hashSync(password, salt);
 
-	const query = `INSERT INTO users (username, password, email, phone, createddate, modifieddate) VALUES ( ?, ?, ?, ?, ?, ?, ?)`;
+	const query = `INSERT INTO users (username, password, email, phone, createddate, modifieddate) VALUES ( ?, ?, ?, ?, ?, ?)`;
 	const params = [username, hashedPassword, email, phone, createddate, modifieddate];
+	console.log(3)
+	try {
+		
+		const result = await db.query(query, params) 
+		if (result.insertId) 
+			res.status(201).send("User Successfully Created");
+		else
+			res.status(422).send("Unable To Process Request");
 
-	db.query(query, params)
-		.then(result => {
-			if (result.insertId) res.status(201).send("User Successfully Created");
-		})
-		.catch(error => {
-			if (error.message.startsWith("Duplicate")) res.status(409).send("Username Already Taken!!!");
-			else res.status(422).send("Unable To Process Request");
-		});
+	} catch (error) {
+		if (error.message.startsWith("Duplicate")) res.status(409).send("Username Already Taken!!!");
+		else res.status(422).send("Unable To Process Request");
+	}
+	
+
 });
 
 //add authentication to let only admins access this api
@@ -120,12 +161,12 @@ router.patch("/genkey", authenticateuser, (req, res) => {
 	const apikey = require('crypto').randomBytes(16).toString("hex")
     const apikeyhash = bcrypt.hashSync(apikey, 10);
 	const query = "Update users set apikey = ? where id = ?";
-	const params = [apikeyhash, req.body.userid];
+	const params = [apikeyhash, req.query.userid];
 
 	db.query(query, params)
     .then(result => {
         if (result.affectedRows === 0) return res.status(404).send("User not found");
-        return res.status(200).send(`api key successfully generated : ${apikey}`);
+        return res.status(200).json({apikey});
     })
     .catch(error => {
         return res.status(500).json({error: error.message});
@@ -133,4 +174,17 @@ router.patch("/genkey", authenticateuser, (req, res) => {
 
 });
 
+router.get('/key', authenticateuser, async (req, res) => {
+	
+	const query_select = 'select apikey from users where id = ?';
+	try {
+		const apikey = await db.query(query_select, [req.query.userid])
+		console.log(apikey[0])
+		return res.json(apikey[0]);
+	} catch (error) {
+		console.log(error)
+		return res.json({message:error.message})
+	}
+
+})
 module.exports = router;

@@ -19,6 +19,7 @@ const query_sel_region = `
 
 //FUNCTION TO GET REGION DETAILS OF A GIVEN PINCODE
 const getpincodedetails = (req, res, next) => {
+	console.log('pin:', req.body)
 	const pincode = req.body.pincode;
 
 	if (!pincode)
@@ -50,11 +51,19 @@ const isValidLandingPageUrl = landingurl =>{
 //FUNCTION TO GET ADS BY REGION
 const getAdsByRegion = async (req, res, next) => {
 	
-	const latitude = req.query.latitude;
-	const longitude = req.query.longitude;
-	const location = await axios.get(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`)
-	const pincode = location.address.postcode
-	
+	const latitude = req.query.lat;
+	const longitude = req.query.long;
+	let location;
+	console.log({latitude, longitude})
+
+	try {
+		location = await axios.get(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`)
+	} catch (error) {
+		return res.status(500).send('Nominatim call failed');
+	}
+
+	// console.log({location})
+	const pincode = location.data.address.postcode
 	let cityid, districtid, stateid, countryid;
 	let region;
     let ads = []
@@ -72,6 +81,7 @@ const getAdsByRegion = async (req, res, next) => {
 
 		if (!region) return res.status(422).send("Unable to get region details. Please check pincode!!!");
 
+		req.body.pincode = pincode;
 	} catch (error) {
         console.log(error)
 		return res.status(422).send("Unable to get region details. Please check pincode!!!");
@@ -79,6 +89,8 @@ const getAdsByRegion = async (req, res, next) => {
 
     //use region details to find the relevant ads
 	try {
+		console.log({cityid, districtid, stateid, countryid});
+		
 		ads = (await db.query(query_sel_ad, [cityid, districtid, stateid, countryid]))[0];
 		req.body.ads = ads;
 		next();

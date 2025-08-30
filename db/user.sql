@@ -1,13 +1,12 @@
 CREATE TABLE `users` (
-  `id` int NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `username` varchar(255) NOT NULL,
   `password` varchar(60) NOT NULL,
   `email` varchar(255) NULL,
   `phone` varchar(20) NOT NULL,
-  `key` varchar(255) NOT NULL,
+  `apikey` varchar(255) NULL,
   `createddate` datetime NOT NULL,
   `modifieddate` datetime NOT NULL,
-  `isactive` bit(0) DEFAULT 1
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `username` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  `isactive` bit(1) DEFAULT 1,
+   UNIQUE KEY `username` (`username`)
+)

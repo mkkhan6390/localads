@@ -1,5 +1,5 @@
-CREATE TABLE `users` (
+CREATE TABLE `user_roles` (
   `userid` int NOT NULL,
   `roleid` int NOT NULL,
-  PRIMARY KEY (`userid, roleid`)
+  PRIMARY KEY (`userid`,`roleid`)
 )

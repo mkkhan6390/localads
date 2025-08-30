@@ -1,29 +1,56 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import './App.css';
 
 function App() {
+  const [coords, setCoords] = useState(null);
+  const [geoError, setGeoError] = useState(null);
+  
+ useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          console.log("User allowed location:", latitude, longitude);
+          setCoords({ latitude, longitude });
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          setGeoError(error.message);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    } else {
+      console.error("Geolocation not supported");
+      setGeoError("Geolocation not supported");
+    }
+  }, []);
+
   useEffect(() => {
-    // Create a script element
+    console.log(coords)
+    if (!coords) return;
+
+    // Build API URL with latitude & longitude
     const script = document.createElement('script');
-    script.src = "http://localhost:5000/ad/getads?pincode=416520&username=mkkhan6390&apikey=666123a8ea670b3370efc6081b86fb41";
+    script.src = `http://localhost:5000/ad/getad?lat=${coords.latitude}&long=${coords.longitude}&username=mkhan6390&apikey=6147b71dad25c4fdc61c0fe32f37ece3&appid=915f89f1-84e1-11f0-bfe2-c85b7660b47d`;
     script.async = true;
 
-    // Append the script to the document body
     document.body.appendChild(script);
 
-    // Clean up by removing the script when the component unmounts
     return () => {
       document.body.removeChild(script);
     };
-  }, []);
+  }, [coords]);
 
   return (
     <div className="App">
       <p>The adbox is below this</p>
-      <div id="ad-container"></div> 
+      <div id="ad-container"></div>
     </div>
   );
 }
 
 export default App;
-

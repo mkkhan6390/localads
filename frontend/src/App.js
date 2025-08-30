@@ -2,8 +2,9 @@ import "./App.css";
 import 'bootstrap/dist/css/bootstrap.css';
 import "bootstrap-icons/font/bootstrap-icons.css";
 import {BrowserRouter as Router, Route, Routes, Navigate} from "react-router-dom";
-import Login from "./login";
-import Dashboard from "./dashboard";
+import Login from "./Components/auth/login";
+import Dashboard from "./Components/Dashboard/dashboard";
+import Home from "./Components/Landing/Home.js";
 
 function App() {
 	const isLoggedIn = () => {
@@ -12,14 +13,17 @@ function App() {
 	};
 
 	const PrivateRoute = ({children}) => {
-		return isLoggedIn() ? children : <Navigate to="/login" />;
+		return isLoggedIn() ? children : <Navigate to="/" />;
 	};
 
 	return (
 		<>
 			<Router>
 				<Routes>
-					<Route path="/login" element={isLoggedIn() ? <Navigate to="/dashboard" /> : <Login />} />
+					
+					<Route path="/" element={<Home isLoggedIn={isLoggedIn}/>} />
+					<Route path="/login" element={!isLoggedIn() ? <Login /> : <Navigate to="/dashboard" />} />
+					
 					<Route
 						path="/dashboard"
 						element={

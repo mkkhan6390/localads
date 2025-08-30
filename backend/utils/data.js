@@ -1,6 +1,25 @@
 const mysql = require('mysql2/promise');
-const mongoose = require('mongoose');
+const { MongoClient } = require("mongodb");
 
+const uri = "mongodb://localhost:27017/ads";
+const client = new MongoClient(uri);
+let mongo;
+
+(async () => {
+  await client.connect();
+  mongo = client.db('ads');
+  console.log("✅ Connected to MongoDB");
+})()
+
+async function getDB() {
+
+	if(!mongo){
+		await client.connect();
+  		mongo = client.db('ads');
+	}
+
+	return mongo
+}
 
 const pool = mysql.createPool({
   host: 'localhost',
@@ -8,6 +27,14 @@ const pool = mysql.createPool({
   password: 'password',
   database: 'ads',
 });
+
+async function mongoInsertOne(collection, data) {
+	try {
+		await mongo.collection(collection).insertOne(data)
+	} catch (error) {
+		console.log(error)
+	}
+}
 
 async function query(query, params) {
 	let result;
@@ -26,4 +53,4 @@ async function query(query, params) {
 	return result;
 }
 
-module.exports = { query };
+module.exports = { query, mongoInsertOne, getDB };

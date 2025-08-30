@@ -1,101 +1,104 @@
-const express = require("express");
-const router = express.Router();
-const multer = require("multer");
-const path = require("path");
-const axios = require("axios");
-const FormData = require('form-data');
-const fs = require("fs");
-const db = require("../utils/data");
-const {authenticateuser, authenticateapikey} = require('../utils/authentication')
-const {getpincodedetails, getAdsByRegion, isValidLandingPageUrl} = require('../utils/functions')
 require('dotenv').config()
+const express = require("express");
+const router = express.Router()
+// const path = require("path");
+// const axios = require("axios");
+// const FormData = require('form-data');
+// const fs = require("fs");
 
-const imgbbKey = process.env.IMGBB_KEY;
-// Sample ad data pincode, type, url 
-const sampleAd = {
-	id:0,
-	title:'Sample Ad',
-	description:'This is a default sample fallback ad that will be sent if no ad is found',
-	pincode: 0o0000,
-	type:'image',
-	url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Cat_August_2010-4.jpg/1200px-Cat_August_2010-4.jpg',
-};
+const {authenticateuser, authenticateapikey} = require('../utils/authentication')
+const {getpincodedetails, getAdsByRegion, isValidLandingPageUrl} = require('../utils/functions');
 
+const db = require("../utils/data");
+const { storage } = require('../utils/cloudinary');
+const multer = require('multer');
+const upload = multer({ storage }); 
 
-const storage = multer.diskStorage({
-	destination: (req, file, cb) => {
-		cb(null, __dirname);
-	},
-	filename: (req, file, cb) => {
-		cb(null, Date.now() + "-" + file.originalname);
-	},
-});
-const upload = multer({storage: storage});
- 
 
 // POST CALL TO UPLOAD AND CREATE AN ADVERTISEMENT
 router.post("/create", upload.single("file"), authenticateuser, getpincodedetails, async (req, res) => {
-	
-	const file = req.file;
-	const cityid = req.body.cityid;
-	const districtid = req.body.districtid;
-	const stateid = req.body.stateid;
-	const countryid = req.body.countryid;
-	const userid = req.body.userid || req.query.userid;
-	const adtitle = req.body.title;
-	const addesc = req.body.description;
-	const pincode = req.body.pincode;
-	const displaylevel = req.body.level;
-	const type = req.body.type;
-	const date = new Date();
-	let fileurl='';
-
-	// Validate required fields
-	if (!file)
-		// consider adding conditions to check required attributes of file such as filename
-		return res.status(422).send("Ad file missing!!!");
-
-	if ([adtitle, addesc, pincode, displaylevel, type].some(field => !field)) 
-		return res.status(422).send("Required ad fields missing");
-
-	const filePath = path.join(__dirname, file.filename);
-	const fileData = fs.readFileSync(filePath).toString("base64");;
-
+  
 	try {
-		// Upload to Cloudflare Images
-		const formData = new FormData();
-		formData.append("image", fileData);
-
-		const response = await axios.post(`https://api.imgbb.com/1/upload?expiration=600&key=${imgbbKey}`, formData, {
-    		headers: {
-        	...formData.getHeaders()  // Set appropriate headers for multipart/form-data
-    		}
-		})
-		
-		fileurl = response.data.data.url || '';
-		
-	} catch (error) {
-		console.log("error:", error);
-		return res.status(500).send("Error uploading file.");
-	} finally {
-		fs.unlinkSync(filePath);
-	}
-
-
-	const insertquery = `INSERT INTO ads(owner_id, title, description, pincode, cityid, districtid, stateid, countryid, display_level, type, ad_url, added_date) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-	const params = [userid, adtitle, addesc, pincode, cityid, districtid, stateid, countryid, displaylevel, type, fileurl, date];
-	console.log(params)
-	await db
-		.query(insertquery, params)
-		.then(result => {
-			if (result.insertId) return res.status(201).send("Ad successfully created. Access url: " + fileurl);
-		})
-		.catch(error => {
-			console.log(error);
-			return res.status(422).send("Unable to process request");
-		});
+	console.log('api:',req.body);
+    const { file } = req;
+    const {
+      cityid,
+      districtid,
+      stateid,
+      countryid,
+      userid = req.query.userid,
+      title: adtitle,
+      description: addesc,
+      pincode,
+      displaylevel,
+      type
+    } = req.body;
+	console.log(1);
 	
+    // Validate required fields
+    const requiredFields = { adtitle, addesc, pincode, displaylevel, type };
+    if (!file) return res.status(422).json({ error: "Ad file missing" });
+    console.log(2);
+    const missingFields = Object.entries(requiredFields)
+      .filter(([_, value]) => !value)
+      .map(([key]) => key);
+      
+    if (missingFields.length > 0) {
+      return res.status(422).json({ 
+        error: "Required fields missing", 
+        missingFields 
+      });
+    }
+	console.log(3);
+    // Cloudinary already processed the file, URL is available
+    const fileurl = file.path;
+
+    // Database insertion
+    const insertQuery = `
+      INSERT INTO ads(
+        owner_id, title, description, pincode, 
+        cityid, districtid, stateid, countryid, 
+        display_level, type, ad_url, added_date
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    const params = [
+      userid, adtitle, addesc, pincode,
+      cityid, districtid, stateid, countryid,
+      displaylevel, type, fileurl, new Date()
+    ];
+
+    const result = await db.query(insertQuery, params);
+    console.log(4);
+    if (result.insertId) {
+      return res.status(201).json({
+        success: true,
+        message: "Ad successfully created",
+        url: fileurl,
+        adId: result.insertId
+      });
+    }
+    
+    throw new Error("Database insertion failed");
+    
+  } catch (error) {
+    console.error("Error creating ad:", error);
+    
+    // Handle specific Cloudinary errors
+    if (error.http_code) {
+      return res.status(error.http_code).json({
+        error: "Image upload failed",
+        details: error.message
+      });
+    }
+    
+    return res.status(500).json({
+      error: "Unable to process request",
+      details: process.env.NODE_ENV === 'DEV' ? error.message : undefined
+    });
+  }
 });
+
 
 router.get("/myads", authenticateuser, async (req, res) => {
 	
@@ -105,9 +108,22 @@ router.get("/myads", authenticateuser, async (req, res) => {
 	res.json(ads)
 })
 
+router.get("/ad/:id", authenticateuser, async (req, res) => {
+	
+	const userid = req.body.userid;
+	const id = req.params.id;
+
+	const query = `select * from ads where id = ? and owner_id = ?`
+	const params =  [id, userid] 
+
+	const ads = await db.query(query, params)
+	res.json(ads[0])
+
+})
+
 router.get("/activate", authenticateuser, async (req, res) => {
 	
-	const updatequery = `update ads set landing_url = ?, isactive=1 where id = ?`
+	const updatequery = `update ads set landing_url = ?, isactive=1, remaining=100 where id = ?`
 	const adId = req.query.id;
 	const landingurl = req.query.landingurl 
 
@@ -126,9 +142,30 @@ router.get("/activate", authenticateuser, async (req, res) => {
 })
 
 router.get("/getad", authenticateapikey, getAdsByRegion, async (req, res) => { 
+  console.log({'ads':req.body.ads})
+	const ad = req.body.ads[0] //|| sampleAd; //need to have a default ad whenever no ad is available
+	const pincode = req.body.pincode;
+  const appid = req.query.appid
+  const adid = ad.id;  
 
-	const ad = req.body.ads[0] || sampleAd;
-	console.log(ad)
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const timestamp = new Date();
+  
+  const event = { 
+    ip,
+    adid:adid+'', 
+    appid,
+    pincode,
+    timestamp
+  }
+ 
+  try {
+    await db.mongoInsertOne('views', event);
+    console.log(adid, 'Ad was viewed')
+  } catch (error) {
+    console.log('Error Inserting View Data :',error)
+  }
+
 
 	res.setHeader('Content-Type', 'application/javascript');
 	
@@ -152,9 +189,9 @@ router.get("/getad", authenticateapikey, getAdsByRegion, async (req, res) => {
 			 document.body.appendChild(adContainer); 
 		 } 
 		 adContainer.innerHTML = \`
-			<a href="${ad.url}" id="adid1100${ad.id}" target="_blank"> 
+			<a href="${ad.landing_url}" id="adid1100${ad.id}" target="_blank"> 
 				<img 
-					src="${ad.url}"
+					src="${ad.ad_url}"
 					alt="${ad.title}"
 					width="500px" 
 					height="150px" 
@@ -164,14 +201,38 @@ router.get("/getad", authenticateapikey, getAdsByRegion, async (req, res) => {
 	  })();
 
 	  document.getElementById('adid1100${ad.id}').addEventListener('click', function(event) {
-		fetch('http://localhost:5000/ad/click', {
+		fetch('http://localhost:5000/ad/click?id=${ad.id}&pincode=${pincode}&appid=${appid}', {
       	method: 'GET'
-	  }
+	    })
+    })
 	`);
 } );
 
-router.get("/click", () => {
+router.get("/click", async (req, res) => {
+  //consider adding appid, pincode, etc in site cache if possible
+  const adid = req.query.id.replace('adid1100', '');
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const appid = req.query.appid;//
+  const pincode = req.query.pincode//
+  const timestamp = new Date();// 
+  
+  const event = { 
+    ip,
+    adid, 
+    appid,
+    pincode,
+    timestamp
+  }
 
+  console.log(event)
+  try {
+    await db.mongoInsertOne('clicks', event);
+  } catch (error) {
+    console.log('Error Inserting Click Data :',error)
+  }
+
+  console.log(adid, ' Ad was clicked.')
+  return res.status(200).send("Thank you for clicking!")
 })
 
 module.exports = router;

@@ -7,6 +7,7 @@ const SECRET_KEY = process.env.SECRET_KEY;
 
 //FUNCTION TO AUTHENTICATE USERNAME AND ASSOCIATED PASSWORD
 const authenticateuser = (req, res, next) => {
+	console.log("auth:",req.body)
 	const authHeader = req.headers.authorization;
 	const username = req.query.username || req.body.username;
 	const inputPassword = req.query.password || req.body.password;
