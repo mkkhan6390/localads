@@ -1,15 +1,10 @@
-require('dotenv').config()
 const express = require("express");
-const router = express.Router()
-// const path = require("path");
-// const axios = require("axios");
-// const FormData = require('form-data');
-// const fs = require("fs");
-
-const {authenticateuser, authenticateapikey} = require('../utils/authentication')
-const {getpincodedetails, getAdsByRegion, isValidLandingPageUrl} = require('../utils/functions');
-
+const router = express.Router();
 const db = require("../utils/data");
+const {authenticateuser, authenticateapikey} = require('../utils/authentication')
+const {getpincodedetails, getAdsByRegion, isValidLandingPageUrl} = require('../utils/functions')
+require('dotenv').config()
+
 const { storage } = require('../utils/cloudinary');
 const multer = require('multer');
 const upload = multer({ storage }); 
@@ -19,26 +14,22 @@ const upload = multer({ storage });
 router.post("/create", upload.single("file"), authenticateuser, getpincodedetails, async (req, res) => {
   
 	try {
-	console.log('api:',req.body);
-    const { file } = req;
-    const {
-      cityid,
-      districtid,
-      stateid,
-      countryid,
-      userid = req.query.userid,
-      title: adtitle,
-      description: addesc,
-      pincode,
-      displaylevel,
-      type
-    } = req.body;
-	console.log(1);
+    const file = req.file;
+    const cityid = req.body.cityid;
+    const districtid = req.body.districtid;
+    const stateid = req.body.stateid;
+    const countryid = req.body.countryid;
+    const userid = req.body.userid || req.query.userid;
+    const adtitle = req.body.title;
+    const addesc = req.body.description;
+    const pincode = req.body.pincode;
+    const displaylevel = req.body.displaylevel;
+    const type = req.body.type;
 	
     // Validate required fields
     const requiredFields = { adtitle, addesc, pincode, displaylevel, type };
     if (!file) return res.status(422).json({ error: "Ad file missing" });
-    console.log(2);
+
     const missingFields = Object.entries(requiredFields)
       .filter(([_, value]) => !value)
       .map(([key]) => key);
@@ -49,7 +40,7 @@ router.post("/create", upload.single("file"), authenticateuser, getpincodedetail
         missingFields 
       });
     }
-	console.log(3);
+
     // Cloudinary already processed the file, URL is available
     const fileurl = file.path;
 
@@ -69,7 +60,7 @@ router.post("/create", upload.single("file"), authenticateuser, getpincodedetail
     ];
 
     const result = await db.query(insertQuery, params);
-    console.log(4);
+
     if (result.insertId) {
       return res.status(201).json({
         success: true,
@@ -98,7 +89,6 @@ router.post("/create", upload.single("file"), authenticateuser, getpincodedetail
     });
   }
 });
-
 
 router.get("/myads", authenticateuser, async (req, res) => {
 	

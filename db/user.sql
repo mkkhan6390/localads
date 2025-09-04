@@ -8,5 +8,6 @@ CREATE TABLE `users` (
   `createddate` datetime NOT NULL,
   `modifieddate` datetime NOT NULL,
   `isactive` bit(1) DEFAULT 1,
+  `usertype` ENUM('ADMIN', 'ADVERTISER', 'DEVELOPER') NOT NULL DEFAULT 'ADVERTISER',
    UNIQUE KEY `username` (`username`)
 )

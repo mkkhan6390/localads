@@ -2,7 +2,7 @@ import "./App.css";
 import 'bootstrap/dist/css/bootstrap.css';
 import "bootstrap-icons/font/bootstrap-icons.css";
 import {BrowserRouter as Router, Route, Routes, Navigate} from "react-router-dom";
-import Login from "./Components/auth/login";
+import AuthPage from "./Components/auth/AuthPage.js";
 import Dashboard from "./Components/Dashboard/dashboard";
 import Home from "./Components/Landing/Home.js";
 
@@ -22,7 +22,7 @@ function App() {
 				<Routes>
 					
 					<Route path="/" element={<Home isLoggedIn={isLoggedIn}/>} />
-					<Route path="/login" element={!isLoggedIn() ? <Login /> : <Navigate to="/dashboard" />} />
+					<Route path="/login" element={!isLoggedIn() ? <AuthPage /> : <Navigate to="/dashboard" />} />
 					
 					<Route
 						path="/dashboard"

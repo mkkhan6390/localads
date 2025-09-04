@@ -20,11 +20,11 @@ router.post("/login", authenticateuser, (req, res) => {
 router.post("/create", async (req, res) => {
 
 	console.log("creating user")
-	const {username, email, phone, password, confirmpassword} = req.body;
+	const {username, email, phone, password, confirmpassword, usertype} = req.body;
 	console.log(req.body)
 
 	//Check if all required fields are provided
-	if (!username || !password || !confirmpassword || (!email || !phone)) return res.status(403).send("Missing required fields");
+	if (!username || !password || !confirmpassword || !usertype || (!email || !phone)) return res.status(403).send("Missing required fields");
 	//Check if password and confirm password match
 	if (password !== confirmpassword) return res.status(403).send("Passwords Do Not Match!!!");
 	
@@ -48,8 +48,7 @@ router.post("/create", async (req, res) => {
 
 	//Check if username already exists
 	const query_username = `SELECT * FROM users WHERE username =? or email =? or phone =?`;
-	
-	console.log(1)
+	 
 	try {
 		const users = await db.query(query_username, [username, email, phone])
 		console.log(users)
@@ -59,16 +58,16 @@ router.post("/create", async (req, res) => {
 	} catch (error) {
 		res.status(422).send("Unable To Process Request");
 	}
-	console.log(2)
+	
 	const createddate = getCurrentTimestamp();
 	const modifieddate = createddate;
 
 	const salt = bcrypt.genSaltSync();
 	const hashedPassword = bcrypt.hashSync(password, salt);
 
-	const query = `INSERT INTO users (username, password, email, phone, createddate, modifieddate) VALUES ( ?, ?, ?, ?, ?, ?)`;
-	const params = [username, hashedPassword, email, phone, createddate, modifieddate];
-	console.log(3)
+	const query = `INSERT INTO users (username, password, email, phone, usertype, createddate, modifieddate) VALUES ( ?, ?, ?, ?, ?, ?, ?)`;
+	const params = [username, hashedPassword, email, phone, usertype, createddate, modifieddate];
+
 	try {
 		
 		const result = await db.query(query, params) 
