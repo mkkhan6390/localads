@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Container, Navbar, Nav, Button, Row, Col, Card, Spinner, Alert, Toast, ToastContainer } from "react-bootstrap";
-import axios from "axios";
+import api from "../../api";
 import logo from '../../Naav logo.svg';
-import NewAdModal from "./newAd"; 
+import NewAdModal from "./newAd";
 import ActivateAdModal from "./ActivateAd";
 import Statistics from "./statistics";
 import Profile from "./profile";
+import PublisherApps from "./publisherApps";
 import { BsPlusCircle, BsBoxArrowRight, BsPencil } from "react-icons/bs";
 
 // const stats = [
@@ -80,8 +81,8 @@ const Dashboard = () => {
       }
 
       try {
-        const response = await axios.get("http://localhost:5000/dashboard", { 
-          headers: { Authorization: `Bearer ${token}` } 
+        const response = await api.get("http://localhost:5000/dashboard", {
+          headers: { Authorization: `Bearer ${token}` }
         });
         setUserData(response.data);
       } catch (err) {
@@ -89,6 +90,8 @@ const Dashboard = () => {
         setError("Failed to load dashboard data. Please try again.");
         localStorage.removeItem("token");
         localStorage.removeItem("userid");
+        localStorage.removeItem("username");
+        localStorage.removeItem("usertype");
         navigate("/login");
       } finally {
         setLoading(false);
@@ -98,19 +101,19 @@ const Dashboard = () => {
     fetchData();
   }, [navigate]);
 
-  useEffect(()=>{
-	const fetchStats = async () =>{
-	  try {
-		const userid = localStorage.getItem('userid')
-        const response = await axios.post(`http://localhost:5000/dashboard/stats/${userid}`);
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const userid = localStorage.getItem('userid')
+        const response = await api.post(`http://localhost:5000/dashboard/stats/${userid}`);
         setStats(response.data);
       } catch (err) {
         console.log(err);
       }
-	}
-	
-	fetchStats()
-  },[navigate])
+    }
+
+    fetchStats()
+  }, [navigate])
 
   const handleNewAdButton = () => {
     setSelectedAd(-1);
@@ -120,6 +123,8 @@ const Dashboard = () => {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("userid");
+    localStorage.removeItem("username");
+    localStorage.removeItem("usertype");
     navigate("/login");
   };
 
@@ -167,37 +172,43 @@ const Dashboard = () => {
               <Navbar.Brand className="d-flex align-items-center">
                 {/* <img src={logo} alt="Naav Logo" height={40} width={70} className="me-2" /> */}
                 <Link to='/'>
-					<span className="d-none d-md-inline">Local Ads</span>
-				</Link>
+                  <span className="d-none d-md-inline">Local Ads</span>
+                </Link>
               </Navbar.Brand>
               <Navbar.Toggle aria-controls="main-navbar" />
               <Navbar.Collapse id="main-navbar">
                 <Nav className="me-auto">
-                  <Nav.Link 
-                    active={activeTab === "ads"} 
+                  <Nav.Link
+                    active={activeTab === "ads"}
                     onClick={() => setActiveTab("ads")}
                   >
                     Advertisements
                   </Nav.Link>
-                  <Nav.Link 
-                    active={activeTab === "stats"} 
+                  <Nav.Link
+                    active={activeTab === "stats"}
                     onClick={() => setActiveTab("stats")}
                   >
                     Statistics
                   </Nav.Link>
-                  <Nav.Link 
-                    active={activeTab === "profile"} 
+                  <Nav.Link
+                    active={activeTab === "profile"}
                     onClick={() => setActiveTab("profile")}
                   >
                     Profile
                   </Nav.Link>
+                  <Nav.Link
+                    active={activeTab === "apps"}
+                    onClick={() => setActiveTab("apps")}
+                  >
+                    My Apps
+                  </Nav.Link>
                 </Nav>
                 <Nav className="ms-auto d-flex align-items-center">
                   <span className="me-3 d-none d-md-block">Welcome, <strong>{userData.username}</strong></span>
-                  <Button 
-                    variant="outline-secondary" 
-                    size="sm" 
-                    className="d-flex align-items-center" 
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    className="d-flex align-items-center"
                     onClick={handleLogout}
                   >
                     <BsBoxArrowRight className="me-2" /> Log Out
@@ -222,37 +233,37 @@ const Dashboard = () => {
                     {userData.ads.map(ad => (
                       <Col key={ad.id}>
                         <Card className="h-100 shadow-sm hover-shadow">
-                          <Card.Img 
-                            variant="top" 
-                            src={ad.ad_url} 
-                            alt={ad.title} 
-                            style={{ height: '180px', objectFit: 'cover' }} 
+                          <Card.Img
+                            variant="top"
+                            src={ad.ad_url}
+                            alt={ad.title}
+                            style={{ height: '180px', objectFit: 'cover' }}
                           />
                           <Card.Body>
                             <Card.Title>{ad.title}</Card.Title>
                             <Card.Text className="text-muted small">
-                              {ad.description.length > 100 ? 
-                                `${ad.description.substring(0, 100)}...` : 
+                              {ad.description.length > 100 ?
+                                `${ad.description.substring(0, 100)}...` :
                                 ad.description
                               }
                             </Card.Text>
                           </Card.Body>
                           <Card.Footer className="bg-white border-0">
                             <div className="d-flex justify-content-between">
-                              <Button 
-                                variant="outline-secondary" 
-                                size="sm" 
-                                id={ad.id} 
+                              <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                id={ad.id}
                                 onClick={handleEditButton}
                                 className="d-flex align-items-center"
                               >
                                 <BsPencil className="me-1" /> Edit
                               </Button>
                               {!ad.isactive && (
-                                <Button 
-                                  variant="primary" 
-                                  size="sm" 
-                                  id={ad.id} 
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  id={ad.id}
                                   onClick={handleActivateButton}
                                 >
                                   Activate
@@ -269,8 +280,8 @@ const Dashboard = () => {
                     <Card.Body>
                       <h5>You don't have any ads yet</h5>
                       <p className="text-muted">Create your first ad to start promoting your business</p>
-                      <Button 
-                        variant="primary" 
+                      <Button
+                        variant="primary"
                         onClick={handleNewAdButton}
                         className="mt-3 d-inline-flex align-items-center"
                       >
@@ -285,7 +296,7 @@ const Dashboard = () => {
             {activeTab === "stats" && (
               <>
                 <h4 className="mb-4">Your Ad Statistics</h4>
-                <Statistics adsData={stats}/>
+                <Statistics adsData={stats} />
               </>
             )}
 
@@ -294,7 +305,14 @@ const Dashboard = () => {
                 <h4 className="mb-4">Your Profile</h4>
                 <p><strong>Username:</strong> {userData.username}</p>
                 <p><strong>Email:</strong> {userData.email}</p>
-				<Profile/>
+                <Profile />
+              </>
+            )}
+
+            {activeTab === "apps" && (
+              <>
+                <h4 className="mb-4">My Publisher Apps</h4>
+                <PublisherApps />
               </>
             )}
           </Container>
@@ -313,15 +331,15 @@ const Dashboard = () => {
       ) : null}
 
       {/* Modals */}
-      <ActivateAdModal 
-        setShowActivateAdModal={setShowActivateAdModal} 
-        showActivateAdModal={showActivateAdModal} 
-        selectedAd={selectedAd} 
+      <ActivateAdModal
+        setShowActivateAdModal={setShowActivateAdModal}
+        showActivateAdModal={showActivateAdModal}
+        selectedAd={selectedAd}
       />
-      <NewAdModal 
-        setShowNewAdModal={setShowNewAdModal} 
-        showNewAdModal={showNewAdModal} 
-        selectedAd={selectedAd} 
+      <NewAdModal
+        setShowNewAdModal={setShowNewAdModal}
+        showNewAdModal={showNewAdModal}
+        selectedAd={selectedAd}
       />
     </div>
   );

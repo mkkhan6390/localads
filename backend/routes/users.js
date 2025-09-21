@@ -8,14 +8,53 @@ require('dotenv').config()
 const {authenticateuser} = require('../utils/authentication')
 const getCurrentTimestamp = () => new Date().toISOString().slice(0, 19).replace("T", " ");
 const SECRET_KEY = process.env.SECRET_KEY
+const REFRESH_KEY = process.env.REFRESH_KEY
 
 router.get('/', (req, res) => res.send("user route is running"))
 
 router.post("/login", authenticateuser, (req, res) => {
-	const token = jwt.sign({id: req.body.userid, username: req.body.username}, SECRET_KEY, {expiresIn: "1h"});
+	const token = jwt.sign({id: req.body.userid, username: req.body.username, usertype: req.body.usertype}, SECRET_KEY, {expiresIn: "1h"});
+	const refreshToken = jwt.sign({id: req.body.userid, username: req.body.username, usertype: req.body.usertype}, REFRESH_KEY, {expiresIn: "7d"});
+	
 	console.log('login token:', token)
-	return res.json({token, userid: req.body.userid});
+	res.cookie('rejwt', refreshToken, {
+		httpOnly: false,
+		sameSite: 'None', secure: true,
+		maxAge: 3 * 24 * 60 * 60 * 1000
+	});
+	return res.json({token, userid: req.body.userid, username: req.body.username, usertype: req.body.usertype});
 });
+
+router.get('/auth', authenticateuser, (req, res) => {
+	return res.json({userid: req.body.userid, usertype: req.body.usertype});
+})
+
+router.post('/token/refresh', (req, res) => {
+
+	const refreshToken = req.cookies?.rejwt; 
+	if (refreshToken) {
+
+		try {
+			jwt.verify(refreshToken, REFRESH_KEY) 
+			// const token = jwt.sign({ id: userid, email }, SECRET_KEY, { expiresIn: '10m'});
+			const token = jwt.sign({id: req.body.userid, username: req.body.username, usertype: req.body.usertype}, SECRET_KEY, {expiresIn: "1h"});
+			const refreshToken = jwt.sign({id: req.body.userid, username: req.body.username, usertype: req.body.usertype}, SECRET_KEY, {expiresIn: "7d"});
+			res.cookie('rejwt', refreshToken, {
+				httpOnly: false,
+				sameSite: 'None', secure: true,
+				maxAge: 7 * 24 * 60 * 60 * 1000
+			});
+			return res.json({token, userid: req.body.userid, usertype: req.body.usertype});
+		} catch (error) {
+			console.log(error)
+			return res.status(406).json({ message: 'Unauthorized' });
+		}
+
+	} else {
+		return res.status(406).json({ message: 'Unauthorized' });
+	}
+
+})
 
 router.post("/create", async (req, res) => {
 
@@ -161,11 +200,13 @@ router.patch("/genkey", authenticateuser, (req, res) => {
     const apikeyhash = bcrypt.hashSync(apikey, 10);
 	const query = "Update users set apikey = ? where id = ?";
 	const params = [apikeyhash, req.query.userid];
-
+	//I'll use the hashed apikey as the api key for now. this will make it easy to get the apikey later.
+	//in future consider using the original apikey as it will keep the apikey secure.
+	//the only downside would be that you can only view the key once and if you lose it you need to regenerate a new one.
 	db.query(query, params)
     .then(result => {
         if (result.affectedRows === 0) return res.status(404).send("User not found");
-        return res.status(200).json({apikey});
+        return res.status(200).json({apikey:apikeyhash});
     })
     .catch(error => {
         return res.status(500).json({error: error.message});

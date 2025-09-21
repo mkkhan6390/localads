@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../api';
 import { 
   Button, 
   Modal, 
@@ -35,7 +35,7 @@ function NewAdModal(props) {
     if (props.selectedAd > 0) {
       async function getAdById() {
         const token = localStorage.getItem("token");
-        const response = await axios.get(`http://localhost:5000/ad/ad/${props.selectedAd}`, {
+        const response = await api.get(`http://localhost:5000/ad/ad/${props.selectedAd}`, {
           headers: { authorization: `Bearer ${token}` },
         });
         console.log(response.data);
@@ -171,7 +171,7 @@ const fileInput = document.querySelector('input[type="file"]');
 
   try {
     const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-    const response = await axios.post(`${API_URL}/ad/create`, formData, {
+    const response = await api.post(`${API_URL}/ad/create`, formData, {
       headers: {
         "Content-Type": "multipart/form-data",
         authorization: `Bearer ${token}`,

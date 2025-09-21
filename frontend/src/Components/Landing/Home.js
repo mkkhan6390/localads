@@ -19,7 +19,7 @@ const Home = ({isLoggedIn}) =>{
                   <Nav.Link href="#features">Features</Nav.Link>
                   <Nav.Link href="#testimonials">Testimonials</Nav.Link>
                   <Nav.Link href="#pricing">Pricing</Nav.Link>
-                  <Link to="/login">
+                  <Link to={isLoggedIn() ? "/dashboard" : "/login"}>
                     <Button variant="primary" className="ms-2">{isLoggedIn() ? 'Dashboard' : 'Get Started'}</Button>
                   </Link>
                 </Nav>

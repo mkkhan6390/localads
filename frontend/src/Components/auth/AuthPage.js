@@ -11,7 +11,7 @@ import {
   ToggleButtonGroup,
   ToggleButton,
 } from "react-bootstrap";
-import axios from "axios";
+import api from "../../api";
 import { useNavigate } from "react-router-dom";
 import logo from "../../Naav logo.svg";
 
@@ -43,9 +43,10 @@ const AuthPage = () => {
   const handleSignin = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post("http://localhost:5000/user/login", signindata);
+      const response = await api.post("http://localhost:5000/user/login", signindata);
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("userid", response.data.userid);
+      localStorage.setItem("username", response.data.username);
       navigate("/dashboard");
     } catch (err) {
       setError("Login Failed! Username/Password Incorrect.");
@@ -63,7 +64,7 @@ const AuthPage = () => {
       return;
     }
     try {
-      const response = await axios.post("http://localhost:5000/user/create", signupdata);
+      const response = await api.post("http://localhost:5000/user/create", signupdata);
       console.log(response.data);
       alert("Signup successful! You can now log in.");
     } catch (err) {

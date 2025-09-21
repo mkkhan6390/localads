@@ -131,16 +131,16 @@ router.get("/activate", authenticateuser, async (req, res) => {
 
 })
 
-router.get("/getad", authenticateapikey, getAdsByRegion, async (req, res) => { 
+router.post("/getad", authenticateapikey, getAdsByRegion, async (req, res) => { 
   console.log({'ads':req.body.ads})
 	const ad = req.body.ads[0] //|| sampleAd; //need to have a default ad whenever no ad is available
 	const pincode = req.body.pincode;
-  const appid = req.query.appid
+  const appid = req.body.appid
   const adid = ad.id;  
-
+ 
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const timestamp = new Date();
-  
+
   const event = { 
     ip,
     adid:adid+'', 
@@ -149,6 +149,7 @@ router.get("/getad", authenticateapikey, getAdsByRegion, async (req, res) => {
     timestamp
   }
  
+  //Need to update the views for the fetched ad. need to add time, appid, user ip address and location of the view in mongodb
   try {
     await db.mongoInsertOne('views', event);
     console.log(adid, 'Ad was viewed')
@@ -156,54 +157,49 @@ router.get("/getad", authenticateapikey, getAdsByRegion, async (req, res) => {
     console.log('Error Inserting View Data :',error)
   }
 
+  return res.json({...ad, pincode:pincode})
+	// res.setHeader('Content-Type', 'application/javascript');
+	// res.send(`
+	//   (function() {  
+	// 	 let adContainer = document.getElementById('ad-container'); 
+	// 	 if (!adContainer) {
+	// 		 adContainer = document.createElement('div'); 
+	// 		 adContainer.id = 'ad-container';
+	// 		 adContainer.style.position = 'fixed';
+	// 		 adContainer.style.top = '0';
+	// 		 adContainer.style.width = '500px';
+	// 		 adContainer.style.height = '150px';
+	// 		 adContainer.style.backgroundColor = '#f0f0f0';
+	// 		 adContainer.style.zIndex = '1000';
+	// 		 document.body.appendChild(adContainer); 
+	// 	 } 
+	// 	 adContainer.innerHTML = \`
+	// 		<a href="${ad.landing_url}" id="adid1100${ad.id}" target="_blank"> 
+	// 			<img 
+	// 				src="${ad.ad_url}"
+	// 				alt="${ad.title}"
+	// 				width="500px" 
+	// 				height="150px" 
+	// 				style="display: block; margin: auto;"
+	// 			/>
+	// 		</a>\`; 
+	//   })();
 
-	res.setHeader('Content-Type', 'application/javascript');
-	
-	
-	//Need to update the views for the fetched ad. need to add time, appid, user ip address and location of the view in mongodb
-	//anchor href should be the link where we want to redirect the adclick
-	//the href should be an api call to our server which will increment the click count of that add and then return the link to the details page of the ad
-	// consider taking an input for the position and size of the ad or atleast having default options
-	res.send(`
-	  (function() {  
-		 let adContainer = document.getElementById('ad-container'); 
-		 if (!adContainer) {
-			 adContainer = document.createElement('div'); 
-			 adContainer.id = 'ad-container';
-			 adContainer.style.position = 'fixed';
-			 adContainer.style.top = '0';
-			 adContainer.style.width = '500px';
-			 adContainer.style.height = '150px';
-			 adContainer.style.backgroundColor = '#f0f0f0';
-			 adContainer.style.zIndex = '1000';
-			 document.body.appendChild(adContainer); 
-		 } 
-		 adContainer.innerHTML = \`
-			<a href="${ad.landing_url}" id="adid1100${ad.id}" target="_blank"> 
-				<img 
-					src="${ad.ad_url}"
-					alt="${ad.title}"
-					width="500px" 
-					height="150px" 
-					style="display: block; margin: auto;"
-				/>
-			</a>\`; 
-	  })();
-
-	  document.getElementById('adid1100${ad.id}').addEventListener('click', function(event) {
-		fetch('http://localhost:5000/ad/click?id=${ad.id}&pincode=${pincode}&appid=${appid}', {
-      	method: 'GET'
-	    })
-    })
-	`);
+	//   document.getElementById('adid1100${ad.id}').addEventListener('click', function(event) {
+	// 	fetch('http://localhost:5000/ad/click?id=${ad.id}&pincode=${pincode}&appid=${appid}', {
+  //     	method: 'GET'
+	//     })
+  //   })
+	// `);
 } );
 
-router.get("/click", async (req, res) => {
+router.post("/click", async (req, res) => {
   //consider adding appid, pincode, etc in site cache if possible
-  const adid = req.query.id.replace('adid1100', '');
+  const data = JSON.parse(req.body)
+  const adid = data.id + '';
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  const appid = req.query.appid;//
-  const pincode = req.query.pincode//
+  const appid = data.appid;//
+  const pincode = data.pincode//
   const timestamp = new Date();// 
   
   const event = { 

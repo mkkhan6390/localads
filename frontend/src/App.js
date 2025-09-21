@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import "./App.css";
 import 'bootstrap/dist/css/bootstrap.css';
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -6,16 +7,18 @@ import AuthPage from "./Components/auth/AuthPage.js";
 import Dashboard from "./Components/Dashboard/dashboard";
 import Home from "./Components/Landing/Home.js";
 
-function App() {
+function App() { 
+
 	const isLoggedIn = () => {
 		const token = localStorage.getItem("token");
 		return !!token;
 	};
 
+
 	const PrivateRoute = ({children}) => {
 		return isLoggedIn() ? children : <Navigate to="/" />;
 	};
-
+	
 	return (
 		<>
 			<Router>
@@ -33,7 +36,7 @@ function App() {
 						}
 					/>
           {/* Need to create a 404 page */}
-					<Route path="*" element={<Navigate to="/login" />} />
+					<Route path="*" element={<Navigate to="/" />} />
 				</Routes>
 			</Router>
 		</>

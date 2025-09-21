@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card, Button, InputGroup, FormControl } from "react-bootstrap";
 import { Eye, EyeOff, Copy, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../api";
 
 
 const Profile = () => {
@@ -19,7 +19,7 @@ const Profile = () => {
         }
 
         try {
-            const response = await axios.patch("http://localhost:5000/user/genkey", {}, { headers: { authorization: `Bearer ${token}` }});
+            const response = await api.patch("http://localhost:5000/user/genkey", {}, { headers: { authorization: `Bearer ${token}` }});
             setApiKey(response.data.apikey)
             setShowKey(false);
         } catch (error) {
@@ -36,7 +36,7 @@ const Profile = () => {
         }
 
         try {
-            const response = await axios.get("http://localhost:5000/user/key", { headers: { Authorization: `Bearer ${token}` }});
+            const response = await api.get("http://localhost:5000/user/key", { headers: { Authorization: `Bearer ${token}` }});
             
             if(response.data.apikey){
                 setApiKey(response.data.apikey)

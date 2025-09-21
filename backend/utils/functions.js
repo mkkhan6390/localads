@@ -49,12 +49,16 @@ const isValidLandingPageUrl = landingurl =>{
 }
 
 //FUNCTION TO GET ADS BY REGION
-const getAdsByRegion = async (req, res, next) => {
-	
-	const latitude = req.query.lat;
-	const longitude = req.query.long;
-	let location;
+const getAdsByRegion = async (req, res, next) => { 
+
+	const latitude = req.body.location.latitude || req.query.lat;
+	const longitude = req.body.location.longitude || req.query.long;
+
 	console.log({latitude, longitude})
+	if(!latitude || !longitude)
+		return res.status(422).send("Please provive a valid location");
+
+	let location;
 
 	try {
 		location = await axios.get(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`)
