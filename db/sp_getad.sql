@@ -1,30 +1,48 @@
-CREATE PROCEDURE ads.getad()
+-- Need to improve logic for performance....
+CREATE PROCEDURE `getad`(
+    IN p_pincode INT,
+    IN p_index INT
+)
 BEGIN
-
-    DECLARE ad_id INT;
-
-
+    DECLARE sel_ad_id INT;
+    DECLARE next_index INT;
+    
     START TRANSACTION;
- 
-    SELECT id INTO ad_id
-    FROM ads.ads
-    WHERE 
-        remaining > 0 AND
-          ((cityid = 1105)
-       OR (districtid = 219 AND display_level >= 2)
-       OR (stateid = 21 AND display_level >= 3)
-       OR (countryid = 1 AND display_level >= 4))
-    ORDER BY lastcalled
-    LIMIT 1
-    FOR UPDATE;
- 
+
+    SELECT ad_id, ad_index+1 INTO sel_ad_id, next_index
+    FROM ads.adsequence
+    WHERE  
+        pincode = p_pincode AND
+        ad_index = p_index
+    LIMIT 1;
+
+	if sel_ad_id  IS NULL THEN
+    SELECT ad_id, ad_index+1 INTO sel_ad_id, next_index
+    FROM ads.adsequence
+    WHERE  
+        pincode = p_pincode AND
+        ad_index > p_index
+    LIMIT 1;
+	END IF;
+    
+    IF sel_ad_id  IS NULL THEN
+    SELECT ad_id, ad_index+1 INTO sel_ad_id, next_index
+    FROM ads.adsequence
+    WHERE
+		pincode = p_pincode
+	LIMIT 1;
+	END IF;
+    
+	-- also need to decrement remaining count. right now ignoring that part for testing other things.
     UPDATE ads.ads
-    SET lastcalled = NOW()
-    WHERE id = ad_id;
+    SET 
+		lastcalled = NOW(),
+        views = views + 1
+    WHERE id = sel_ad_id;
 
-
-    SELECT id, title, description, pincode, type, url FROM ads.ads
-    WHERE id = ad_id;
+    SELECT id, title, description, pincode, type, ad_url, landing_url, next_index as next_index
+    FROM ads.ads
+    WHERE id = sel_ad_id;
 
     COMMIT;
-END;
+END

@@ -53,7 +53,8 @@ const getAdsByRegion = async (req, res, next) => {
 
 	const latitude = req.body.location.latitude || req.query.lat;
 	const longitude = req.body.location.longitude || req.query.long;
-
+	const adIndexes = req.body.adIndexes || {};
+	console.log({adIndexes})
 	console.log({latitude, longitude})
 	if(!latitude || !longitude)
 		return res.status(422).send("Please provive a valid location");
@@ -68,12 +69,14 @@ const getAdsByRegion = async (req, res, next) => {
 
 	// console.log({location})
 	const pincode = location.data.address.postcode
+	const adIndex = adIndexes[pincode] || 1;
+		
 	let cityid, districtid, stateid, countryid;
 	let region;
     let ads = []
 
-	const query_sel_ad = `CALL getad(?, ?, ?, ?)`;
-	
+	const query_sel_ad = `CALL getad(?, ?)`;
+
     //get region details using the pincode
 	try {
 		const result = await db.query(query_sel_region, [pincode]);
@@ -94,8 +97,8 @@ const getAdsByRegion = async (req, res, next) => {
     //use region details to find the relevant ads
 	try {
 		console.log({cityid, districtid, stateid, countryid});
-		
-		ads = (await db.query(query_sel_ad, [cityid, districtid, stateid, countryid]))[0];
+		console.log({pincode, adIndex})
+		ads = (await db.query(query_sel_ad, [pincode, adIndex]))[0];
 		req.body.ads = ads;
 		next();
         // return res.status(200).send(ads)

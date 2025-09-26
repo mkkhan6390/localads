@@ -31,6 +31,26 @@ router.get('/', async (req, res) => {
           }
         };
 
+        // Function to get ad indexes
+        function getAdIndex() {
+            return JSON.parse(localStorage.getItem("adIndexes") || "{}");
+        }
+
+        // Function to set ad indexes
+        function setAdIndex(pincode, index) {
+            const stored = JSON.parse(localStorage.getItem("adIndexes") || "{}");
+            stored[pincode] = index;
+            localStorage.setItem("adIndexes", JSON.stringify(stored));
+        }
+
+        // Function to increment ad index for a pincode
+        function incrementAdIndex(pincode) {
+            const adIndexes = getAdIndex();
+            adIndexes[pincode] = (adIndexes[pincode] || 0) + 1;
+            setAdIndex(pincode, adIndexes[pincode]);
+        }
+
+
         // Detect location (via browser geolocation API)
         function getLocation() {
             return new Promise((resolve) => {
@@ -47,15 +67,22 @@ router.get('/', async (req, res) => {
 
         async function fetchAd() {
             let location = await getLocation();
+            let adIndexes = getAdIndex();
 
-            const payload = { username, appid, apikey, adtype, deviceInfo, location };
+            const payload = { username, appid, apikey, adtype, deviceInfo, location, adIndexes };
             const response = await fetch("http://localhost:5000/ad/getad", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload)
             })
             const ad = await response.json();
-	
+	        
+            //this should be done in the end after making sure user has seen the ad but placing it here for now.
+            // Increment ad index for this pincode
+            if (ad.pincode) {
+                setAdIndex(ad.pincode, ad.next_index);
+            }
+
 	        // consider taking an input for the position and size of the ad or atleast having default options
             if (ad.id) {
                 // Create ad container
