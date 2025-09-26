@@ -14,8 +14,9 @@ import {
 import api from "../../api";
 import { useNavigate } from "react-router-dom";
 import logo from "../../Naav logo.svg";
+import axios from "axios";
 
-const AuthPage = () => {
+const AuthPage = ({setUser}) => {
   const [signindata, setSignindata] = useState({ username: "", password: "" });
   const [signupdata, setSignupdata] = useState({
     username: "",
@@ -43,10 +44,12 @@ const AuthPage = () => {
   const handleSignin = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post("http://localhost:5000/user/login", signindata);
+      const response = await axios.post("http://localhost:5000/user/login", signindata);
+      console.log("logged in :",response.data)
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("userid", response.data.userid);
       localStorage.setItem("username", response.data.username);
+      setUser({userid:response.data.userid,username:response.data.username,usertype:response.data.usertype});
       navigate("/dashboard");
     } catch (err) {
       setError("Login Failed! Username/Password Incorrect.");
@@ -64,7 +67,7 @@ const AuthPage = () => {
       return;
     }
     try {
-      const response = await api.post("http://localhost:5000/user/create", signupdata);
+      const response = await axios.post("http://localhost:5000/user/create", signupdata);
       console.log(response.data);
       alert("Signup successful! You can now log in.");
     } catch (err) {
