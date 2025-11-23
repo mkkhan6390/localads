@@ -125,7 +125,7 @@ router.post("/create", async (req, res) => {
 
 //add authentication to let only admins access this api
 router.get("/getuser/:id", (req, res) => {
-	const query = `SELECT username, email, phone, createddate, modifieddate, isactive FROM users WHERE id = ?`;
+	const query = `SELECT username, usertype FROM users WHERE id = ?`;
 	const params = [req.params.id];
 
 	db.query(query, params)

@@ -55,7 +55,7 @@ import { BsPlusCircle, BsBoxArrowRight, BsPencil } from "react-icons/bs";
 // }
 // ]
 
-const Dashboard = () => {
+const Dashboard = ({user}) => {
   const [userData, setUserData] = useState(null);
   const [showNewAdModal, setShowNewAdModal] = useState(false);
   const [showActivateAdModal, setShowActivateAdModal] = useState(false);
@@ -68,6 +68,8 @@ const Dashboard = () => {
   const [stats, setStats] = useState([]);
 
   const navigate = useNavigate();
+  console.log({user})
+  const usertype = user?.usertype;//need to update logic to authorize by correct usertype.
 
   useEffect(() => {
     const fetchData = async () => {
@@ -178,30 +180,30 @@ const Dashboard = () => {
               <Navbar.Toggle aria-controls="main-navbar" />
               <Navbar.Collapse id="main-navbar">
                 <Nav className="me-auto">
-                  <Nav.Link
+                  {usertype == 'ADVERTISER' && <Nav.Link
                     active={activeTab === "ads"}
                     onClick={() => setActiveTab("ads")}
                   >
                     Advertisements
-                  </Nav.Link>
-                  <Nav.Link
+                  </Nav.Link>}
+                  {usertype == 'ADVERTISER' && <Nav.Link
                     active={activeTab === "stats"}
-                    onClick={() => setActiveTab("stats")}
+                    onClick={() => setActiveTab("stats")}// update statistics component later to show stats based on usertype
                   >
                     Statistics
-                  </Nav.Link>
+                  </Nav.Link>}
                   <Nav.Link
                     active={activeTab === "profile"}
                     onClick={() => setActiveTab("profile")}
                   >
                     Profile
                   </Nav.Link>
-                  <Nav.Link
+                  {usertype == 'DEVELOPER' && <Nav.Link
                     active={activeTab === "apps"}
                     onClick={() => setActiveTab("apps")}
                   >
                     My Apps
-                  </Nav.Link>
+                  </Nav.Link>}
                 </Nav>
                 <Nav className="ms-auto d-flex align-items-center">
                   <span className="me-3 d-none d-md-block">Welcome, <strong>{userData.username}</strong></span>
@@ -305,7 +307,7 @@ const Dashboard = () => {
                 <h4 className="mb-4">Your Profile</h4>
                 <p><strong>Username:</strong> {userData.username}</p>
                 <p><strong>Email:</strong> {userData.email}</p>
-                <Profile />
+                <Profile user={user} />
               </>
             )}
 

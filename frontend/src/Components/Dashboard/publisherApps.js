@@ -24,7 +24,7 @@ export default function PublisherApps() {
   const [formData, setFormData] = useState({
     appName: "",
     appType: "website",
-    appUrl: "",
+    appIdentifier: "",
     description: "",
   });
   const [saving, setSaving] = useState(false);
@@ -74,7 +74,7 @@ export default function PublisherApps() {
       await fetchApps()
 
       // Reset and close modal
-      setFormData({ appName: "", appType: "website", appUrl: "", description: "" });
+      setFormData({ appName: "", appType: "website", appIdentifier: "", description: "" });
       setShowModal(false);
     } catch (err) {
       console.error("Error adding app:", err);
@@ -212,9 +212,9 @@ export default function PublisherApps() {
             <Form.Group className="mb-3">
               <Form.Control
                 type="text"
-                name="appUrl"
+                name="appIdentifier"
                 placeholder="Website URL or App Package ID"
-                value={formData.appUrl}
+                value={formData.appIdentifier}
                 onChange={handleChange}
                 required
               />

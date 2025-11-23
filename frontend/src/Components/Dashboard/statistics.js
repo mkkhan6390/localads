@@ -51,7 +51,7 @@ const Statistics = ({ adsData }) => {
         <Col>
           <Dropdown>
             <Dropdown.Toggle variant="outline-primary" className="shadow-sm rounded-pill px-4">
-              {selectedAd.title || `Ad #${selectedAd.adid}`}
+              {selectedAd.title || `Ad #${selectedAd.adid} - ${selectedAd.month}/${selectedAd.year.toString().slice(-2)}`}
             </Dropdown.Toggle>
 
             <Dropdown.Menu>
@@ -61,7 +61,7 @@ const Statistics = ({ adsData }) => {
                   onClick={() => setSelectedAd(ad)}
                   active={ad.adid === selectedAd.id}
                 >
-                  {ad.title || `Ad #${ad.adid}`}
+                  {ad.title || `Ad #${ad.adid} - ${ad.month}/${ad.year.toString().slice(-2)}`}
                 </Dropdown.Item>
               ))}
             </Dropdown.Menu>

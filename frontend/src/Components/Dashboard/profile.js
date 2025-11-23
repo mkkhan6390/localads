@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../api";
 
 
-const Profile = () => {
+const Profile = ({ user }) => {
     const navigate = useNavigate();
     const [apiKey, setApiKey] = useState(null);
     const [showKey, setShowKey] = useState(false);
@@ -19,13 +19,13 @@ const Profile = () => {
         }
 
         try {
-            const response = await api.patch("http://localhost:5000/user/genkey", {}, { headers: { authorization: `Bearer ${token}` }});
+            const response = await api.patch("http://localhost:5000/user/genkey", {}, { headers: { authorization: `Bearer ${token}` } });
             setApiKey(response.data.apikey)
             setShowKey(false);
         } catch (error) {
             console.log(error)
             alert(error.message)
-        } 
+        }
     }
 
     const fetchApiKey = async () => {
@@ -36,12 +36,12 @@ const Profile = () => {
         }
 
         try {
-            const response = await api.get("http://localhost:5000/user/key", { headers: { Authorization: `Bearer ${token}` }});
-            
-            if(response.data.apikey){
+            const response = await api.get("http://localhost:5000/user/key", { headers: { Authorization: `Bearer ${token}` } });
+
+            if (response.data.apikey) {
                 setApiKey(response.data.apikey)
                 setShowKey(false);
-            }else{
+            } else {
                 if (window.confirm("Api Key has not been generated yet. Generate now?")) {
                     return await generateApiKey()
                 }
@@ -50,10 +50,10 @@ const Profile = () => {
         } catch (error) {
             console.log(error)
             alert(error.message)
-        } 
+        }
     };
 
-    // 📋 Copy to clipboard
+    // Copy to clipboard
     const copyToClipboard = () => {
         if (apiKey) {
             navigator.clipboard.writeText(apiKey);
@@ -63,50 +63,53 @@ const Profile = () => {
 
     return (
         <Card className="shadow-sm p-4 rounded-4">
-            <h4 className="mb-3">Profile Settings</h4>
+            {/* <h4 className="mb-3">Profile Settings</h4> */}
 
-            <div className="mb-4">
-                <h6 className="mb-2">API Key</h6>
-                {apiKey ? (
-                    <InputGroup>
-                        <FormControl
-                            type="text"
-                            value={showKey ? apiKey : "•••••••••••••••••••"}
-                            readOnly
-                            className="rounded-start-pill"
-                        />
+            {
+                user.usertype === "DEVELOPER" &&
+                <div className="mb-4">
+                    <h6 className="mb-2">API Key</h6>
+                    {apiKey ? (
+                        <InputGroup>
+                            <FormControl
+                                type="text"
+                                value={showKey ? apiKey : "•••••••••••••••••••"}
+                                readOnly
+                                className="rounded-start-pill"
+                            />
+                            <Button
+                                variant="outline-secondary"
+                                onClick={() => setShowKey(!showKey)}
+                                className="d-flex align-items-center"
+                            >
+                                {showKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </Button>
+                            <Button
+                                variant="outline-secondary"
+                                onClick={copyToClipboard}
+                                className="d-flex align-items-center"
+                            >
+                                <Copy size={18} />
+                            </Button>
+                            <Button
+                                variant="outline-danger"
+                                onClick={generateApiKey}
+                                className="d-flex align-items-center rounded-end-pill"
+                            >
+                                <RefreshCw size={18} className="me-1" /> Reset
+                            </Button>
+                        </InputGroup>
+                    ) : (
                         <Button
-                            variant="outline-secondary"
-                            onClick={() => setShowKey(!showKey)}
-                            className="d-flex align-items-center"
+                            variant="primary"
+                            onClick={fetchApiKey}
+                            className="rounded-pill px-4"
                         >
-                            {showKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                            Fetch Your API Key
                         </Button>
-                        <Button
-                            variant="outline-secondary"
-                            onClick={copyToClipboard}
-                            className="d-flex align-items-center"
-                        >
-                            <Copy size={18} />
-                        </Button>
-                        <Button
-                            variant="outline-danger"
-                            onClick={generateApiKey}
-                            className="d-flex align-items-center rounded-end-pill"
-                        >
-                            <RefreshCw size={18} className="me-1" /> Reset
-                        </Button>
-                    </InputGroup>
-                ) : (
-                    <Button
-                        variant="primary"
-                        onClick={fetchApiKey}
-                        className="rounded-pill px-4"
-                    >
-                        Fetch Your API Key
-                    </Button>
-                )}
-            </div>
+                    )}
+                </div>
+            }
         </Card>
     );
 };

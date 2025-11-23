@@ -9,7 +9,7 @@ const {authenticateuser} = require('../utils/authentication')
 router.get("/", authenticateuser, async (req, res) => {
     console.log('user',req.body)
   try {
-    const rows = await db.query( "SELECT a.id, a.name, a.description, a.user_id, a.type, u.apikey, u.username FROM apps a join users u on u.id=a.user_id where user_id = ?", [req.body.userid] );
+    const rows = await db.query( "SELECT a.id, a.name, a.app_identifier, a.description, a.user_id, a.type, u.apikey, u.username FROM apps a join users u on u.id=a.user_id where user_id = ?", [req.body.userid] );
     return res.json(rows);
   } catch (err) {
     console.error("Error fetching apps:", err);
@@ -21,13 +21,13 @@ router.get("/", authenticateuser, async (req, res) => {
 router.post("/add", authenticateuser, async (req, res) => {
   try {
     const { appName, appType, appIdentifier, description } = req.body;
-
+    console.log('req.body', req.body)
     if (!appName || !appType || !appIdentifier) {
       return res.status(400).json({ error: "Missing required fields" });
     }
  
     const result = await db.query(
-      "INSERT INTO apps (user_id, name, app_type, app_identifier, description) VALUES ( ?, ?, ?, ?, ?)",
+      "INSERT INTO apps (user_id, name, type, app_identifier, description) VALUES ( ?, ?, ?, ?, ?)",
       [req.user.id, appName, appType, appIdentifier, description]
     );
  
