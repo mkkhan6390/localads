@@ -1,8 +1,22 @@
 import { Container, Row, Col, Button } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 import growthlogo from '../../growth.png';
 import heroBg from '../../hero-bg.png'; // Path to your downloaded background image
 
-function Hero() {
+function Hero({ isLoggedIn }) {
+  const navigate = useNavigate();
+
+  const handleStartAdvertising = () => {
+    navigate(isLoggedIn() ? '/dashboard' : '/login');
+  };
+
+  const handleLearnMore = () => {
+    const featuresSection = document.getElementById('features');
+    if (featuresSection) {
+      featuresSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div
       className="hero-section py-5"
@@ -29,10 +43,10 @@ function Hero() {
               Showcase your advertisements on premium apps and websites.
             </p>
             <div className="d-flex gap-3 justify-content-center justify-content-lg-start">
-              <Button variant="primary" size="lg" className="px-4 py-2">
+              <Button variant="primary" size="lg" className="px-4 py-2" onClick={handleStartAdvertising}>
                 Start Advertising
               </Button>
-              <Button variant="outline-light" size="lg" className="px-4 py-2">
+              <Button variant="outline-light" size="lg" className="px-4 py-2" onClick={handleLearnMore}>
                 Learn More
               </Button>
             </div>
