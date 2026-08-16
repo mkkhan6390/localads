@@ -232,7 +232,7 @@ router.put("/update/:id", upload.single("file"), authenticateuser, resolvePincod
 
 router.get("/activate", authenticateuser, async (req, res) => {
 	
-	const updatequery = `update ads set landing_url = ?, isactive=1, remaining=100 where id = ?`
+	const updatequery = `update ads set landing_url = ?, isactive = b'1', remaining = 100 where id = ?`
 	const adId = req.query.id;
 	const landingurl = req.query.landingurl 
 
