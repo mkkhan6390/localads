@@ -44,12 +44,18 @@ const Dashboard = ({ user }) => {
       setUserData(response.data);
     } catch (err) {
       console.log(err);
-      setError("Failed to load dashboard data. Please try again.");
-      localStorage.removeItem("token");
-      localStorage.removeItem("userid");
-      localStorage.removeItem("username");
-      localStorage.removeItem("usertype");
-      navigate("/login");
+      const status = err.response?.status;
+      if (status === 401 || status === 403) {
+        // Auth failure — clear session and redirect to login
+        localStorage.removeItem("token");
+        localStorage.removeItem("userid");
+        localStorage.removeItem("username");
+        localStorage.removeItem("usertype");
+        navigate("/login");
+      } else {
+        // Server/network error — show error but keep session
+        setError("Failed to load dashboard data. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
