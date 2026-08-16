@@ -63,26 +63,26 @@ router.post("/create", async (req, res) => {
 	console.log(req.body)
 
 	//Check if all required fields are provided
-	if (!username || !password || !confirmpassword || !usertype || (!email || !phone)) return res.status(403).send("Missing required fields");
+	if (!username || !password || !confirmpassword || !usertype || (!email || !phone)) return res.status(403).json({message: "Missing required fields"});
 	//Check if password and confirm password match
-	if (password !== confirmpassword) return res.status(403).send("Passwords Do Not Match!!!");
+	if (password !== confirmpassword) return res.status(403).json({message: "Passwords Do Not Match!!!"});
 	
 	//Validate username format (alphanumeric and underscore only, 3-20 characters)
 	const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
-	if (!usernameRegex.test(username)) return res.status(403).send("Username must be 3-20 characters long and can only contain letters, numbers, and underscores");
+	if (!usernameRegex.test(username)) return res.status(403).json({message: "Username must be 3-20 characters long and can only contain letters, numbers, and underscores"});
 
 	//Validate email format
 	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) return res.status(403).send("Invalid email format");
+    if (!emailRegex.test(email)) return res.status(403).json({message: "Invalid email format"});
     
     //Validate phone number format (assuming Indian format)
     const phoneRegex = /\d{9}$/;
-    if (!phoneRegex.test(phone)) return res.status(403).send("Invalid phone number format");
+    if (!phoneRegex.test(phone)) return res.status(403).json({message: "Invalid phone number format"});
 
 	//Validate password format (at least 8 characters, one uppercase letter, one lowercase letter, one number, one special character)
-	if (password.length < 8) return res.status(403).send("Password must be at least 8 characters long");
+	if (password.length < 8) return res.status(403).json({message: "Password must be at least 8 characters long"});
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(password)) {
-        return res.status(403).send("Password must contain at least one uppercase letter, one lowercase letter, one number and one special character");
+        return res.status(403).json({message: "Password must contain at least one uppercase letter, one lowercase letter, one number and one special character"});
     }
 
 	//Check if username already exists
@@ -92,10 +92,10 @@ router.post("/create", async (req, res) => {
 		const users = await db.query(query_username, [username, email, phone])
 		console.log(users)
 		if (users.length > 0) 
-			return res.status(409).send("Username/Email/Phone Already Taken!!!");
+			return res.status(409).json({message: "Username/Email/Phone Already Taken!!!"});
 
 	} catch (error) {
-		res.status(422).send("Unable To Process Request");
+		return res.status(422).json({message: "Unable To Process Request"});
 	}
 	
 	const createddate = getCurrentTimestamp();
@@ -111,13 +111,13 @@ router.post("/create", async (req, res) => {
 		
 		const result = await db.query(query, params) 
 		if (result.insertId) 
-			res.status(201).send("User Successfully Created");
+			return res.status(201).json({message: "User Successfully Created"});
 		else
-			res.status(422).send("Unable To Process Request");
+			return res.status(422).json({message: "Unable To Process Request"});
 
 	} catch (error) {
-		if (error.message.startsWith("Duplicate")) res.status(409).send("Username Already Taken!!!");
-		else res.status(422).send("Unable To Process Request");
+		if (error.message.startsWith("Duplicate")) return res.status(409).json({message: "Username Already Taken!!!"});
+		else return res.status(422).json({message: "Unable To Process Request"});
 	}
 	
 

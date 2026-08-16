@@ -13,7 +13,7 @@ const authenticateuser = (req, res, next) => {
 	const inputPassword = req.query.password || req.body.password;
  
 	if ((!username || !inputPassword) && !authHeader) {
-		return res.status(401).send("Unauthorized request! Please provide credentials or a valid token to proceed.");
+		return res.status(401).json({message: "Unauthorized request! Please provide credentials or a valid token to proceed."});
 	}
 
 	const selectQuery = `SELECT id, password, usertype FROM users WHERE username = ?`;
@@ -29,7 +29,7 @@ const authenticateuser = (req, res, next) => {
 			return next();
 		} catch (err) {
 			console.log(err)
-			return res.status(403).send("Invalid Token");
+			return res.status(403).json({message: "Invalid Token"});
 		}
 	}
 
@@ -38,13 +38,13 @@ const authenticateuser = (req, res, next) => {
 		return db.query(selectQuery, [username])
 			.then((result) => {
 				if (result.length === 0) {
-					return res.status(401).send("Unauthorized request: User not found");
+					return res.status(401).json({message: "Unauthorized request: User not found"});
 				}
 				const user = result[0];
 				const authenticated = bcrypt.compareSync(inputPassword, user.password);
 
 				if (!authenticated) {
-					return res.status(401).send("Unauthorized request: Invalid credentials");
+					return res.status(401).json({message: "Unauthorized request: Invalid credentials"});
 				}
 
 				req.query.userid = req.body.userid = user.id;
@@ -53,12 +53,12 @@ const authenticateuser = (req, res, next) => {
 			})
 			.catch((error) => {
 				console.error(error);
-				return res.status(500).send("Internal Server Error: Unable to authenticate user");
+				return res.status(500).json({message: "Internal Server Error: Unable to authenticate user"});
 			});
 	}
 
 	
-	return res.status(500).send("Unexpected Server Error");
+	return res.status(500).json({message: "Unexpected Server Error"});
 };
 
 
@@ -90,7 +90,7 @@ const authenticateapikey = (req, res, next) => {
 
 const authenticateToken = (req, res, next) => {
 	const authHeader = req.headers.authorization;
-	if (!authHeader) return res.status(401).send("Access Denied");
+	if (!authHeader) return res.status(401).json({message: "Access Denied"});
 
 	const token = authHeader.split(" ")[1];
 	try {
@@ -98,7 +98,7 @@ const authenticateToken = (req, res, next) => {
 		req.user = user;
 		next();
 	} catch (err) {
-		res.status(403).send("Invalid Token");
+		res.status(403).json({message: "Invalid Token"});
 	}
 };
 
