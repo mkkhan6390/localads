@@ -64,6 +64,7 @@ const Dashboard = ({ user }) => {
       try {
         const userid = localStorage.getItem('userid');
         const response = await api.post(`http://localhost:5000/dashboard/stats/${userid}`);
+        console.log("Fetched Stats from dashboard:", response.data);
         setStats(response.data);
       } catch (err) {
         console.log(err);

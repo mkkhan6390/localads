@@ -55,7 +55,6 @@ const normalizeDayTrendData = (dateMap = {}) => {
       });
     });
   });
-
   return result;
 };
 
@@ -88,6 +87,7 @@ const Statistics = ({ adsData = [] }) => {
   const appData = normalizeMetricData(selectedAd.apps);
 
   // ✅ Day trend
+  console.log("Selected Ad Datetimes:", selectedAd);
   const dayTrendData = normalizeDayTrendData(selectedAd.datetimes);
 
   return (

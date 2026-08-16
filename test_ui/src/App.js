@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import './App.css';
 
 function App() {
@@ -49,9 +49,9 @@ function App() {
     script.async = true;
 
     // add custom attributes
-    script.setAttribute("username", "mkhan6390");
-    script.setAttribute("appid", "0c8e2b0e-84b9-11f0-bfe2-c85b7660b47d");
-    script.setAttribute("apikey", "$2a$10$pRDeD2axZz7Xj0oe3wbvROYsZAyUyk.b8lsY1XIpo8SnT8uOlcFqe");
+    script.setAttribute("username", "Prajakta");
+    script.setAttribute("appid", "72076966-955d-11f1-869f-ac8247e08390");
+    script.setAttribute("apikey", "$2a$10$aXSJV0iQMkLhS/G0J42NbOPt2l9iY/m9iAx0vZPRzy8aLhK5EtbCC");
     script.setAttribute("adtype", "image");
 
     document.body.appendChild(script);

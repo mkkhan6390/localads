@@ -9,10 +9,10 @@ const query_sel_region = `
         s.id AS stateId,
         1 AS countryId
     FROM 
-        ads.pincodes p
+        ads.pincode p
         JOIN ads.cities c ON p.city_id = c.id
-        JOIN ads.districts d ON c.district_id = d.id
-        JOIN ads.states s ON d.state_id = s.id
+        JOIN ads.district d ON c.district_id = d.id
+        JOIN ads.state s ON d.state_id = s.id
     WHERE 
         p.pincode = ?
     LIMIT 1;

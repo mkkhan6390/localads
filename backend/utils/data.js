@@ -24,7 +24,7 @@ async function getDB() {
 const pool = mysql.createPool({
   host: 'localhost',
   user: 'root',
-  password: 'password',
+  password: process.env.MYSQL_PASSWORD,
   database: 'ads',
 });
 
