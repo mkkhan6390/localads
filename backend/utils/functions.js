@@ -1,5 +1,6 @@
 const db = require("./data");
 const axios = require('axios')
+const {reverseGeocode} = require('./geocoder')
 
 const query_sel_region = `
 	SELECT 
@@ -23,8 +24,7 @@ const getpincodedetails = (req, res, next) => {
 	const pincode = req.body.pincode;
 
 	if (!pincode)
-		//add condition to check pincode pattern
-		return res.status(422).send("Please provive a valid pincode");
+		return res.status(422).json({ error: "Please provide a valid pincode" });
 
 	db.query(query_sel_region, [pincode])
 		.then(result => {
@@ -48,27 +48,28 @@ const isValidLandingPageUrl = landingurl =>{
 	return landingurl && (landingurl.startsWith('http') || landingurl.startsWith('wa.me') || landingurl.startsWith('tel:'))
 }
 
-//FUNCTION TO GET ADS BY REGION
 const getAdsByRegion = async (req, res, next) => { 
 
-	const latitude = req.body.location.latitude || req.query.lat;
-	const longitude = req.body.location.longitude || req.query.long;
+	const latitude = req.body.location?.latitude || req.query.lat;
+	const longitude = req.body.location?.longitude || req.query.long;
 	const adIndexes = req.body.adIndexes || {};
-	console.log({adIndexes})
-	console.log({latitude, longitude})
+	const inputPincode = req.body.pincode || req.query.pincode;
+
+	let pincode = inputPincode;
+	
+	if (!pincode) {
 	if(!latitude || !longitude)
-		return res.status(422).send("Please provive a valid location");
+			return res.status(422).send("Please provide a valid location or pincode");
 
-	let location;
+		const location = await reverseGeocode(latitude, longitude);
 
-	try {
-		location = await axios.get(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`)
-	} catch (error) {
-		return res.status(500).send('Nominatim call failed');
+		if (!location || !location.pincode) {
+			return res.status(500).send('Reverse geocoding failed');
+		}
+
+		pincode = location.pincode;
 	}
 
-	// console.log({location})
-	const pincode = location.data.address.postcode
 	const adIndex = adIndexes[pincode] || 1;
 		
 	let cityid, districtid, stateid, countryid;

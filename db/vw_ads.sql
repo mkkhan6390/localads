@@ -1,5 +1,8 @@
 CREATE 
-VIEW `ads`.`vw_ads` AS
+    ALGORITHM = UNDEFINED 
+    DEFINER = `root`@`localhost` 
+    SQL SECURITY DEFINER
+VIEW `vw_ads` AS
     SELECT 
         `a`.`id` AS `id`,
         `a`.`owner_id` AS `owner_id`,
@@ -8,7 +11,7 @@ VIEW `ads`.`vw_ads` AS
         `a`.`description` AS `description`,
         `a`.`pincode` AS `pincode`,
         `a`.`type` AS `type`,
-        `a`.`url` AS `url`,
+        `a`.`ad_url` AS `url`,
         `a`.`views` AS `views`,
         `a`.`clicks` AS `clicks`,
         `a`.`lastcalled` AS `lastcalled`,
@@ -19,8 +22,9 @@ VIEW `ads`.`vw_ads` AS
         `s`.`name` AS `state`,
         'India' AS `country`
     FROM
-        (((`ads`.`ads` `a`
-        JOIN `ads`.`cities` `c` ON (((`a`.`owner_id` = 1)
-            AND (`a`.`cityid` = `c`.`id`))))
-        JOIN `ads`.`districts` `d` ON ((`a`.`districtid` = `d`.`id`)))
-        JOIN `ads`.`states` `s` ON ((`a`.`stateid` = `s`.`id`)))
+        (((`ads` `a`
+        JOIN `cities` `c` ON ((`a`.`cityid` = `c`.`id`)))
+        JOIN `district` `d` ON ((`a`.`districtid` = `d`.`id`)))
+        JOIN `state` `s` ON ((`a`.`stateid` = `s`.`id`)))
+    WHERE
+        (`a`.`isactive` = 1)

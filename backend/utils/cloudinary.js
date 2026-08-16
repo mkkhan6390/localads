@@ -1,4 +1,3 @@
-
 require('dotenv').config()
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
@@ -13,14 +12,11 @@ cloudinary.config({
 
 
 const storage = new CloudinaryStorage({
-    cloudinary,
+  cloudinary: cloudinary,
     params: {
-        folder: 'advertisements',
-        allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
-        transformation: [{ width: 1200, height: 800, crop: 'limit' }]
-    }
+        folder: 'localads', // Folder in Cloudinary
+    allowed_formats: ['jpeg', 'png', 'jpg', 'webp'],
+  },
 });
 
-module.exports = {
-    storage
-};
+module.exports = { storage, cloudinary };
