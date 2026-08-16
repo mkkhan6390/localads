@@ -131,11 +131,11 @@ router.get("/myads", authenticateuser, async (req, res) => {
 
 router.get("/ad/:id", authenticateuser, async (req, res) => {
 	
-	const userid = req.body.userid;
+	const userid = req.body.id;
 	const id = req.params.id;
 
-	const query = `select * from ads where id = ? and owner_id = ?`
-	const params =  [id, userid] 
+	const query = `select * from ads where id = ?`
+	const params =  [id] 
 
 	const ads = await db.query(query, params)
 	res.json(ads[0])
@@ -252,7 +252,10 @@ router.get("/activate", authenticateuser, async (req, res) => {
 
 router.post("/getad", authenticateapikey, getAdsByRegion, async (req, res) => { 
   console.log({'ads':req.body.ads})
-	const ad = req.body.ads[0] //|| sampleAd; //need to have a default ad whenever no ad is available
+	const ad = req.body.ads && req.body.ads.length > 0 ? req.body.ads[0] : null; 
+	if (!ad) {
+		return res.status(404).json({message: "No ads found for this region."});
+	}
 	const pincode = req.body.pincode;
   const appid = req.body.appid
   const adid = ad.id;  
@@ -314,7 +317,7 @@ router.post("/getad", authenticateapikey, getAdsByRegion, async (req, res) => {
 
 router.post("/click", async (req, res) => {
   //consider adding appid, pincode, etc in site cache if possible
-  const data = JSON.parse(req.body)
+  const data = req.body
   const adid = data.id + '';
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const appid = data.appid;//
