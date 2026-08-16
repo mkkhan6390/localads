@@ -236,16 +236,23 @@ router.get("/activate", authenticateuser, async (req, res) => {
 	const adId = req.query.id;
 	const landingurl = req.query.landingurl 
 
+	if(!adId){
+		return res.status(400).json({message:"Ad ID is required"})
+	}
+
 	if(!isValidLandingPageUrl(landingurl)){
-		return res.json({message:"Valid Landing Page Url is required"})
+		return res.status(400).json({message:"Valid Landing Page Url is required"})
 	}
 
 	try {
-		await db.query(updatequery, [landingurl, adId])
+		const result = await db.query(updatequery, [landingurl, adId])
+		if (result.affectedRows === 0) {
+			return res.status(404).json({message:"Ad not found"})
+		}
 		return res.json({message:"Ad was Successfully activated!"})
 	} catch (error) {
 		console.log(error)
-		return res.json({message:"Error while activating Ad!"})
+		return res.status(500).json({message:"Error while activating Ad!"})
 	}
 
 })
