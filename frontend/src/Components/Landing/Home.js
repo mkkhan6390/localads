@@ -47,7 +47,7 @@ const Home = ({isLoggedIn}) =>{
               </Navbar.Collapse>
             </Container>
           </Navbar>
-          <Hero />
+          <Hero isLoggedIn={isLoggedIn} />
           <Features />
           <Testimonials />
           <Footer />
