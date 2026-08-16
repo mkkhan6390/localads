@@ -3,16 +3,18 @@ document.addEventListener('DOMContentLoaded', function() {
   const usernameInput = document.getElementById('username');
   const appidInput = document.getElementById('appid');
   const apikeyInput = document.getElementById('apikey');
+  const pincodeInput = document.getElementById('pincode');
   const adtypeSelect = document.getElementById('adtype');
   const injectBtn = document.getElementById('injectBtn');
   const status = document.getElementById('status');
 
   // Load saved values
-  chrome.storage.sync.get(['username', 'appid', 'apikey', 'adtype'], function(result) {
+  chrome.storage.sync.get(['username', 'appid', 'apikey', 'adtype', 'pincode'], function(result) {
     if (result.username) usernameInput.value = result.username;
     if (result.appid) appidInput.value = result.appid;
     if (result.apikey) apikeyInput.value = result.apikey;
     if (result.adtype) adtypeSelect.value = result.adtype;
+    if (result.pincode) pincodeInput.value = result.pincode;
   });
 
   // Save values when they change
@@ -21,13 +23,15 @@ document.addEventListener('DOMContentLoaded', function() {
       username: usernameInput.value,
       appid: appidInput.value,
       apikey: apikeyInput.value,
-      adtype: adtypeSelect.value
+      adtype: adtypeSelect.value,
+      pincode: pincodeInput.value
     });
   }
 
   usernameInput.addEventListener('input', saveValues);
   appidInput.addEventListener('input', saveValues);
   apikeyInput.addEventListener('input', saveValues);
+  pincodeInput.addEventListener('input', saveValues);
   adtypeSelect.addEventListener('change', saveValues);
 
   // Show status message
@@ -46,6 +50,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const username = usernameInput.value.trim();
     const appid = appidInput.value.trim();
     const apikey = apikeyInput.value.trim();
+    const pincode = pincodeInput.value.trim();
     const adtype = adtypeSelect.value;
 
     // Validate inputs
@@ -67,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: injectSDKScript,
-        args: [username, appid, apikey, adtype]
+        args: [username, appid, apikey, adtype, pincode]
       });
 
       showStatus('Script injected successfully!', 'success');
@@ -80,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Function that will be injected into the page
-function injectSDKScript(username, appid, apikey, adtype) {
+function injectSDKScript(username, appid, apikey, adtype, pincode) {
   // Remove any existing SDK script first
   const existingScript = document.querySelector('script[src*="localhost:5000/sdk"]');
   if (existingScript) {
@@ -95,9 +100,12 @@ function injectSDKScript(username, appid, apikey, adtype) {
   script.setAttribute('appid', appid);
   script.setAttribute('apikey', apikey);
   script.setAttribute('adtype', adtype);
+  if (pincode) {
+    script.setAttribute('pincode', pincode);
+  }
   
   // Append to head
   document.head.appendChild(script);
   
-  console.log('SDK script injected with parameters:', { username, appid, apikey, adtype });
+  console.log('SDK script injected with parameters:', { username, appid, apikey, adtype, pincode });
 }
