@@ -16,6 +16,7 @@ router.get('/', async (req, res) => {
         const appid = currentScript.getAttribute("appid");
         const apikey = currentScript.getAttribute("apikey");
         const adtype = currentScript.getAttribute("adtype") || "image";
+        const pincode = currentScript.getAttribute("pincode");
         const height = currentScript.getAttribute("height") || "150px";
         const width = currentScript.getAttribute("width") || "500px";
         const position = currentScript.getAttribute("position") || "top";
@@ -66,15 +67,23 @@ router.get('/', async (req, res) => {
         }
 
         async function fetchAd() {
+            try {
             let location = await getLocation();
             let adIndexes = getAdIndex();
 
-            const payload = { username, appid, apikey, adtype, deviceInfo, location, adIndexes };
+            const payload = { username, appid, apikey, adtype, deviceInfo, location, adIndexes, pincode };
             const response = await fetch("http://localhost:5000/ad/getad", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload)
-            })
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                console.warn("LocalAds SDK: Failed to fetch ad:", response.status, errText);
+                return;
+            }
+
             const ad = await response.json();
 	        
             //this should be done in the end after making sure user has seen the ad but placing it here for now.
@@ -155,12 +164,16 @@ router.get('/', async (req, res) => {
  
 	            document.getElementById(\`adid1100\${ad.id}\`).addEventListener('click', function(event) {
                     event.preventDefault();
-		            navigator.sendBeacon("http://localhost:5000/ad/click", JSON.stringify({ id: ad.id, appid, pincode:ad.pincode }));
+                    //confirm later whether we really need to send the data as a blob or we can directly send the stringified data.
+		            const clickBlob = new Blob([JSON.stringify({ id: ad.id, appid, pincode:ad.pincode })], { type: "application/json" });
+		            navigator.sendBeacon("http://localhost:5000/ad/click", clickBlob);
                     window.open(ad.landing_url, "_blank");
                 })
   
             }
-            
+            } catch (err) {
+                console.warn("LocalAds SDK: Error loading ad:", err);
+            }
         }
  
         fetchAd();
