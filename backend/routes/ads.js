@@ -3,7 +3,20 @@ const router = express.Router();
 const db = require("../utils/data");
 const {authenticateuser, authenticateapikey} = require('../utils/authentication')
 const {getpincodedetails, getAdsByRegion, isValidLandingPageUrl} = require('../utils/functions')
+const {reverseGeocode} = require('../utils/geocoder')
 require('dotenv').config()
+
+// MIDDLEWARE: if no pincode was submitted but latitude/longitude were,
+// reverse-geocode the coordinates to fill in req.body.pincode automatically.
+const resolvePincodeFromCoordinates = async (req, res, next) => {
+	if (!req.body.pincode && req.body.latitude && req.body.longitude) {
+		const location = await reverseGeocode(req.body.latitude, req.body.longitude);
+		if (location && location.pincode) {
+			req.body.pincode = location.pincode;
+		}
+	}
+	next();
+};
 
 const { storage } = require('../utils/cloudinary');
 const multer = require('multer');
@@ -11,7 +24,7 @@ const upload = multer({ storage });
 
 
 // POST CALL TO UPLOAD AND CREATE AN ADVERTISEMENT
-router.post("/create", upload.single("file"), authenticateuser, getpincodedetails, async (req, res) => {
+router.post("/create", upload.single("file"), authenticateuser, resolvePincodeFromCoordinates, getpincodedetails, async (req, res) => {
   
 	try {
     const file = req.file;
@@ -88,6 +101,24 @@ router.post("/create", upload.single("file"), authenticateuser, getpincodedetail
       details: process.env.NODE_ENV === 'DEV' ? error.message : undefined
     });
   }
+});
+
+// GET CALL TO RESOLVE A PINCODE FROM GPS COORDINATES (used by "Use My Location" on the ad form)
+router.get("/reverse-geocode", authenticateuser, async (req, res) => {
+	const latitude = req.query.lat;
+	const longitude = req.query.long;
+
+	if (!latitude || !longitude) {
+		return res.status(422).json({ error: "Please provide lat and long" });
+	}
+
+	const location = await reverseGeocode(latitude, longitude);
+
+	if (!location || !location.pincode) {
+		return res.status(404).json({ error: "Could not resolve a pincode for this location" });
+	}
+
+	return res.json({ success: true, ...location });
 });
 
 router.get("/myads", authenticateuser, async (req, res) => {
