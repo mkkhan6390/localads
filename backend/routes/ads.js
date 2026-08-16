@@ -142,6 +142,94 @@ router.get("/ad/:id", authenticateuser, async (req, res) => {
 
 })
 
+// PUT CALL TO UPDATE AN EXISTING ADVERTISEMENT
+router.put("/update/:id", upload.single("file"), authenticateuser, resolvePincodeFromCoordinates, getpincodedetails, async (req, res) => {
+	try {
+		const adId = req.params.id;
+		const file = req.file;
+		const userid = req.body.userid || req.query.userid;
+		const adtitle = req.body.title;
+		const addesc = req.body.description;
+		const pincode = req.body.pincode;
+		const displaylevel = req.body.displaylevel;
+		const type = req.body.type;
+		const cityid = req.body.cityid;
+		const districtid = req.body.districtid;
+		const stateid = req.body.stateid;
+		const countryid = req.body.countryid;
+
+		// Validate required fields
+		const requiredFields = { adtitle, addesc, pincode, displaylevel, type };
+		const missingFields = Object.entries(requiredFields)
+			.filter(([_, value]) => !value)
+			.map(([key]) => key);
+
+		if (missingFields.length > 0) {
+			return res.status(422).json({
+				error: "Required fields missing",
+				missingFields
+			});
+		}
+
+		// Build the update query dynamically based on whether a new file was uploaded
+		let updateQuery;
+		let params;
+
+		if (file) {
+			// User uploaded a new image
+			const fileurl = file.path;
+			updateQuery = `
+				UPDATE ads SET 
+					title = ?, description = ?, pincode = ?,
+					cityid = ?, districtid = ?, stateid = ?, countryid = ?,
+					display_level = ?, type = ?, ad_url = ?
+				WHERE id = ? AND owner_id = ?
+			`;
+			params = [
+				adtitle, addesc, pincode,
+				cityid, districtid, stateid, countryid,
+				displaylevel, type, fileurl,
+				adId, userid
+			];
+		} else {
+			// No new image, keep existing one
+			updateQuery = `
+				UPDATE ads SET 
+					title = ?, description = ?, pincode = ?,
+					cityid = ?, districtid = ?, stateid = ?, countryid = ?,
+					display_level = ?, type = ?
+				WHERE id = ? AND owner_id = ?
+			`;
+			params = [
+				adtitle, addesc, pincode,
+				cityid, districtid, stateid, countryid,
+				displaylevel, type,
+				adId, userid
+			];
+		}
+
+		const result = await db.query(updateQuery, params);
+
+		if (result.affectedRows > 0) {
+			return res.status(200).json({
+				success: true,
+				message: "Ad successfully updated"
+			});
+		}
+
+		return res.status(404).json({
+			error: "Ad not found or you don't have permission to edit it"
+		});
+
+	} catch (error) {
+		console.error("Error updating ad:", error);
+		return res.status(500).json({
+			error: "Unable to process request",
+			details: process.env.NODE_ENV === 'DEV' ? error.message : undefined
+		});
+	}
+})
+
 router.get("/activate", authenticateuser, async (req, res) => {
 	
 	const updatequery = `update ads set landing_url = ?, isactive=1, remaining=100 where id = ?`
