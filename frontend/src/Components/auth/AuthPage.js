@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Form,
   Button,
@@ -15,8 +15,9 @@ import api from "../../api";
 import { useNavigate } from "react-router-dom";
 import logo from "../../Naav logo.svg";
 import axios from "axios";
+import "../../App.css";
 
-const AuthPage = ({setUser}) => {
+const AuthPage = ({ setUser }) => {
   const [signindata, setSignindata] = useState({ username: "", password: "" });
   const [signupdata, setSignupdata] = useState({
     username: "",
@@ -26,38 +27,67 @@ const AuthPage = ({setUser}) => {
     confirmpassword: "",
     usertype: "",
   });
+  const [activeTab, setActiveTab] = useState("login");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+
+  // Create a ref for the username input field in the Register tab
+  const usernameRef = useRef(null);
 
   const handleSigninChange = (e) => {
     setSignindata({ ...signindata, [e.target.name]: e.target.value });
   };
 
   const handleSignupChange = (e) => {
-    setSignupdata({ ...signupdata, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    
+    // Allow only numbers in the phone field
+    if (name === "phone" && value !== "" && !/^\d+$/.test(value)) {
+      return;
+    }
+
+    setSignupdata({ ...signupdata, [name]: value });
   };
 
   const handleUserTypeChange = (val) => {
     setSignupdata({ ...signupdata, usertype: val });
+    // Automatically focus on the username input field right after selecting a user type
+    setTimeout(() => {
+      usernameRef.current?.focus();
+    }, 50);
+  };
+
+  const handleTabSelect = (k) => {
+    setActiveTab(k);
+    setError(""); // Clear error when switching tabs
   };
 
   const handleSignin = async (e) => {
     e.preventDefault();
+    setError("");
     try {
       const response = await axios.post("http://localhost:5000/user/login", signindata);
-      console.log("logged in :",response.data)
+      console.log("logged in :", response.data);
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("userid", response.data.userid);
       localStorage.setItem("username", response.data.username);
-      setUser({userid:response.data.userid,username:response.data.username,usertype:response.data.usertype});
+      localStorage.setItem("usertype", response.data.usertype);
+      setUser({
+        userid: response.data.userid,
+        username: response.data.username,
+        usertype: response.data.usertype,
+      });
       navigate("/dashboard");
     } catch (err) {
-      setError("Login Failed! Username/Password Incorrect.");
+      console.error("Login Error:", err.response?.data || err.message);
+      setError(err.response?.data?.message || "Login Failed! Username/Password Incorrect.");
     }
   };
 
   const handleSignup = async (e) => {
     e.preventDefault();
+    setError("");
+
     if (signupdata.password !== signupdata.confirmpassword) {
       setError("Passwords do not match!");
       return;
@@ -66,13 +96,15 @@ const AuthPage = ({setUser}) => {
       setError("Please select a user type!");
       return;
     }
+
     try {
+      const {confirmpassword, ...payload} = signindata;
       const response = await axios.post("http://localhost:5000/user/create", signupdata);
-      console.log(response.data);
+      console.log("Signup success:", response.data);
       alert("Signup successful! You can now log in.");
     } catch (err) {
-      setError("Signup Failed! Please try again.");
-      console.log("Signup Failed!!!\n", err);
+      console.error("Signup Error:", err.response?.data || err.message);
+      setError(err.response?.data?.message || "Signup Failed! Please try again.");
     }
   };
 
@@ -92,7 +124,13 @@ const AuthPage = ({setUser}) => {
 
           {error && <Alert variant="danger">{error}</Alert>}
 
-          <Tabs defaultActiveKey="login" id="auth-tabs" className="mb-3" fill>
+          <Tabs
+            defaultActiveKey="login"
+            id="auth-tabs"
+            className="mb-3 custom-tabs"
+            fill
+            onSelect={handleTabSelect}
+          >
             {/* Login Tab */}
             <Tab eventKey="login" title="Login">
               <Form onSubmit={handleSignin}>
@@ -120,7 +158,7 @@ const AuthPage = ({setUser}) => {
                   />
                 </Form.Group>
 
-                <Button type="submit" variant="primary" className="w-100">
+                <Button type="submit" variant="info" className="w-100 text-dark fw-bold">
                   Login
                 </Button>
               </Form>
@@ -134,6 +172,7 @@ const AuthPage = ({setUser}) => {
                     <Form.Group className="mb-3">
                       <Form.Label>Username</Form.Label>
                       <Form.Control
+                        ref={usernameRef} // Attached the reference here
                         type="text"
                         name="username"
                         placeholder="Choose a username"
@@ -147,24 +186,29 @@ const AuthPage = ({setUser}) => {
                   <Col>
                     {/* User Type Switch */}
                     <Form.Group className="mb-4 text-center">
-                      <Form.Label className="d-block mb-2">User Type</Form.Label>
+                      <Form.Label className="d-block mb-2 fw-bold text-success">
+                        User Type <span className="text-danger">*</span>
+                      </Form.Label>
                       <ToggleButtonGroup
                         type="radio"
                         name="usertype"
                         value={signupdata.usertype}
                         onChange={handleUserTypeChange}
+                        className="w-100 p-1 bg-light border rounded shadow-sm"
                       >
                         <ToggleButton
                           id="usertype-advertiser"
                           value="ADVERTISER"
-                          variant={signupdata.usertype === "ADVERTISER" ? "primary" : "outline-primary"}
+                          variant={signupdata.usertype === "ADVERTISER" ? "primary" : "outline-secondary"}
+                          className="w-50 border-0 fw-semibold"
                         >
                           Advertiser
                         </ToggleButton>
                         <ToggleButton
                           id="usertype-developer"
                           value="DEVELOPER"
-                          variant={signupdata.usertype === "DEVELOPER" ? "success" : "outline-success"}
+                          variant={signupdata.usertype === "DEVELOPER" ? "success" : "outline-secondary"}
+                          className="w-50 border-0 fw-semibold"
                         >
                           Developer
                         </ToggleButton>
@@ -188,7 +232,7 @@ const AuthPage = ({setUser}) => {
                 <Form.Group className="mb-3">
                   <Form.Label>Phone</Form.Label>
                   <Form.Control
-                    type="text"
+                    type="tel"
                     name="phone"
                     placeholder="Enter phone number"
                     value={signupdata.phone}
@@ -230,7 +274,7 @@ const AuthPage = ({setUser}) => {
                 <Button
                   type="submit"
                   variant="success"
-                  className="w-100"
+                  className="w-100 fw-bold"
                   disabled={!passwordsMatch || !signupdata.usertype}
                 >
                   Sign Up

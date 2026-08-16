@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Row, Col, Card, Dropdown } from "react-bootstrap";
+import React, { useState, useEffect } from "react";
+import { Row, Col, Card, Dropdown, Alert } from "react-bootstrap";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line
@@ -8,9 +8,30 @@ import {
 const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff7f50", "#0088FE", "#FFBB28", "#00C49F", "#FF8042"];
 
 const Statistics = ({ adsData }) => {
-  const [selectedAd, setSelectedAd] = useState(adsData[0]);
+  const [selectedAd, setSelectedAd] = useState(null);
 
-  if (!selectedAd) return <p>No statistics available</p>;
+  // Sync selectedAd whenever adsData loads or changes
+  useEffect(() => {
+    if (adsData && adsData.length > 0) {
+      setSelectedAd(prev => {
+        // Keep the current selection if it still exists in adsData
+        if (prev && adsData.find(a => a.adid === prev.adid)) return prev;
+        return adsData[0];
+      });
+    }
+  }, [adsData]);
+
+  if (!adsData || adsData.length === 0) {
+    return (
+      <Alert variant="info" className="mt-3">
+        No statistics available yet. Statistics will appear here once your ads start receiving views and clicks.
+      </Alert>
+    );
+  }
+
+  if (!selectedAd) {
+    return null; // brief flash while selectedAd syncs
+  }
 
   // ✅ Region data
   const regionData = Object.entries(selectedAd.regions || {}).map(([region, stats]) => ({

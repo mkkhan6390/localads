@@ -65,6 +65,7 @@ function ActivateAdModal(props) {
             console.log(response.data.message);
             setSuccess(response.data.message);
             setTimeout(() => {
+                if (props.onSuccess) props.onSuccess(); // refresh the dashboard ad list
                 props.setShowActivateAdModal(false);
             }, 1500);
         } catch (error) {
