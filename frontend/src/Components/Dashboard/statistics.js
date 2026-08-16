@@ -7,63 +7,88 @@ import {
 
 const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff7f50", "#0088FE", "#FFBB28", "#00C49F", "#FF8042"];
 
-const Statistics = ({ adsData }) => {
+const normalizeMetricData = (source = []) => {
+  if (!source) return [];
+
+  if (Array.isArray(source)) {
+    return source
+      .filter(Boolean)
+      .map((entry) => ({
+        name: entry.name || entry.label || "Unknown",
+        views: Number(entry.views || 0),
+        clicks: Number(entry.clicks || 0)
+      }))
+      .filter((entry) => (entry.views || entry.clicks) > 0);
+  }
+
+  return Object.entries(source)
+    .map(([key, stats]) => ({
+      name: key,
+      views: Number(stats?.views || 0),
+      clicks: Number(stats?.clicks || 0)
+    }))
+    .filter((entry) => (entry.views || entry.clicks) > 0);
+};
+
+const normalizeDayTrendData = (dateMap = {}) => {
+  const result = [];
+
+  if (!dateMap) return result;
+
+  Object.values(dateMap).forEach((yearData) => {
+    Object.values(yearData || {}).forEach((monthData) => {
+      Object.values(monthData || {}).forEach((weekData) => {
+        Object.values(weekData || {}).forEach((dayData) => {
+          if (!dayData) return;
+
+          const views = Number(dayData.views || dayData.viewss || 0);
+          const clicks = Number(dayData.clicks || dayData.clickss || 0);
+
+          if (views > 0 || clicks > 0) {
+            result.push({
+              day: dayData.day || "Unknown",
+              views,
+              clicks
+            });
+          }
+        });
+      });
+    });
+  });
+
+  return result;
+};
+
+const Statistics = ({ adsData = [] }) => {
   const [selectedAd, setSelectedAd] = useState(null);
 
-  // Sync selectedAd whenever adsData loads or changes
   useEffect(() => {
-    if (adsData && adsData.length > 0) {
-      setSelectedAd(prev => {
-        // Keep the current selection if it still exists in adsData
-        if (prev && adsData.find(a => a.adid === prev.adid)) return prev;
-        return adsData[0];
-      });
+    if (!adsData || adsData.length === 0) {
+      setSelectedAd(null);
+      return;
     }
+
+    setSelectedAd((prevSelectedAd) => {
+      if (!prevSelectedAd) return adsData[0];
+
+      const matchingAd = adsData.find(
+        (ad) => (ad.id || ad.adid) === (prevSelectedAd.id || prevSelectedAd.adid)
+      );
+
+      return matchingAd || adsData[0];
+    });
   }, [adsData]);
 
-  if (!adsData || adsData.length === 0) {
-    return (
-      <Alert variant="info" className="mt-3">
-        No statistics available yet. Statistics will appear here once your ads start receiving views and clicks.
-      </Alert>
-    );
-  }
-
-  if (!selectedAd) {
-    return null; // brief flash while selectedAd syncs
-  }
+  if (!selectedAd) return <p>No statistics available</p>;
 
   // ✅ Region data
-  const regionData = Object.entries(selectedAd.regions || {}).map(([region, stats]) => ({
-    name: region,
-    views: stats.views,
-    clicks: stats.clicks
-  }));
+  const regionData = normalizeMetricData(selectedAd.regions);
 
   // ✅ App data
-  const appData = Object.entries(selectedAd.apps || {}).map(([app, stats]) => ({
-    appid: app,
-    views: stats.views,
-    clicks: stats.clicks
-  }));
+  const appData = normalizeMetricData(selectedAd.apps);
 
   // ✅ Day trend
-  let dayTrendData = [];
-  if (selectedAd.datetimes) {
-    Object.values(selectedAd.datetimes).forEach(year =>
-      Object.values(year).forEach(month =>
-        Object.values(month).forEach(week =>
-          Object.values(week).forEach(day => {
-            dayTrendData.push({
-              day: day.day,
-              views: day.views,
-              clicks: day.clicks
-            });
-          })
-        )
-      )
-    );
-  }
+  const dayTrendData = normalizeDayTrendData(selectedAd.datetimes);
 
   return (
     <div>
@@ -72,17 +97,17 @@ const Statistics = ({ adsData }) => {
         <Col>
           <Dropdown>
             <Dropdown.Toggle variant="outline-primary" className="shadow-sm rounded-pill px-4">
-              {selectedAd.title || `Ad #${selectedAd.adid} - ${selectedAd.month}/${selectedAd.year.toString().slice(-2)}`}
+              {selectedAd.title || `Ad #${selectedAd.id || selectedAd.adid}`}
             </Dropdown.Toggle>
 
             <Dropdown.Menu>
               {adsData.map(ad => (
                 <Dropdown.Item
-                  key={ad.adid}
+                  key={ad.id || ad.adid}
                   onClick={() => setSelectedAd(ad)}
-                  active={ad.adid === selectedAd.id}
+                  active={(ad.id || ad.adid) === (selectedAd.id || selectedAd.adid)}
                 >
-                  {ad.title || `Ad #${ad.adid} - ${ad.month}/${ad.year.toString().slice(-2)}`}
+                  {ad.title || `Ad #${ad.id || ad.adid}`}
                 </Dropdown.Item>
               ))}
             </Dropdown.Menu>
@@ -146,32 +171,44 @@ const Statistics = ({ adsData }) => {
         <Col md={6}>
           <Card className="shadow-sm p-3">
             <h5 className="mb-3">Region Distribution (Views)</h5>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie data={regionData} dataKey="views" nameKey="name" outerRadius={120} label>
-                  {regionData.map((_, index) => (
-                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {regionData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie data={regionData} dataKey="views" nameKey="name" outerRadius={120} label>
+                    {regionData.map((_, index) => (
+                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 300 }}>
+                No region view data available
+              </div>
+            )}
           </Card>
         </Col>
 
         <Col md={6}>
           <Card className="shadow-sm p-3">
             <h5 className="mb-3">App Distribution (Views)</h5>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie data={appData} dataKey="views" nameKey="name" outerRadius={120} label>
-                  {appData.map((_, index) => (
-                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {appData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie data={appData} dataKey="views" nameKey="name" outerRadius={120} label>
+                    {appData.map((_, index) => (
+                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 300 }}>
+                No app view data available
+              </div>
+            )}
           </Card>
         </Col>
       </Row>
@@ -180,32 +217,44 @@ const Statistics = ({ adsData }) => {
         <Col md={6}>
           <Card className="shadow-sm p-3">
             <h5 className="mb-3">Region Distribution (Clicks)</h5>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie data={regionData} dataKey="clicks" nameKey="name" outerRadius={120} label>
-                  {regionData.map((_, index) => (
-                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {regionData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie data={regionData} dataKey="clicks" nameKey="name" outerRadius={120} label>
+                    {regionData.map((_, index) => (
+                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 300 }}>
+                No region click data available
+              </div>
+            )}
           </Card>
         </Col>
 
         <Col md={6}>
           <Card className="shadow-sm p-3">
             <h5 className="mb-3">App Distribution (Clicks)</h5>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie data={appData} dataKey="clicks" nameKey="name" outerRadius={120} label>
-                  {appData.map((_, index) => (
-                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {appData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie data={appData} dataKey="clicks" nameKey="name" outerRadius={120} label>
+                    {appData.map((_, index) => (
+                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 300 }}>
+                No app click data available
+              </div>
+            )}
           </Card>
         </Col>
       </Row>
@@ -215,17 +264,23 @@ const Statistics = ({ adsData }) => {
         <Col>
           <Card className="shadow-sm p-3">
             <h5 className="mb-3">Daily Trend (Views & Clicks)</h5>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={dayTrendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="views" stroke="#8884d8" />
-                <Line type="monotone" dataKey="clicks" stroke="#82ca9d" />
-              </LineChart>
-            </ResponsiveContainer>
+            {dayTrendData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={dayTrendData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="day" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="views" stroke="#8884d8" />
+                  <Line type="monotone" dataKey="clicks" stroke="#82ca9d" />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 300 }}>
+                No daily trend data available
+              </div>
+            )}
           </Card>
         </Col>
       </Row>

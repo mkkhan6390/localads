@@ -29,7 +29,7 @@ router.post("/stats/:userid", async (req, res) => {
 	console.log('adids:',adids)
 
 	const mongo = await db.getDB()
-	const statsCollection = await mongo.collection('stats');
+	const statsCollection = mongo.collection('stats');
     const { year, month } = req.body;
 
     if (!Array.isArray(adids) || adids.length === 0) {

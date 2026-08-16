@@ -16,7 +16,7 @@ async function getAdDashboard(adid, startDate, endDate) {
   for (const r of rows) {
     console.log('row:', r)
     total_clicks += r.total_clicks || 0;
-    unique_clicks += r.unique_cicks || 0;
+    unique_clicks += r.unique_clicks || 0;
 
     total_views += r.total_views || 0;
     unique_views += r.unique_views || 0;
