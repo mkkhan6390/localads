@@ -28,7 +28,7 @@ const Dashboard = ({ user }) => {
   const navigate = useNavigate();
   const usertype = user?.usertype || localStorage.getItem("usertype");
 
-  const fetchData = async () => {
+   const fetchData = async () => {
     setLoading(true);
     setError("");
 
@@ -582,17 +582,17 @@ const handleDetailsButton = (adId) => {
 
     {/* Card Action Footer */}
     <Card.Footer className="bg-white border-0 p-3">
-      <div className="d-flex justify-content-between align-items-center">
+  <div className="d-flex justify-content-between align-items-center">
     <div className="d-flex gap-2">
-        <Button
-          variant="outline-secondary"
-          size="sm"
-          id={ad.id}
-          onClick={handleEditButton}
-          className="d-flex align-items-center rounded-2 px-3"
-        >
-          <BsPencil className="me-1" /> Edit
-        </Button>
+      <Button
+        variant="outline-secondary"
+        size="sm"
+        id={ad.id}
+        onClick={handleEditButton}
+        className="d-flex align-items-center rounded-2 px-3"
+      >
+        <BsPencil className="me-1" /> Edit
+      </Button>
       <Button
         variant="outline-primary"
         size="sm"
