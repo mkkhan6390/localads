@@ -10,6 +10,7 @@ import PublisherApps from "./publisherApps";
 import { BsPlusCircle, BsBoxArrowRight, BsPencil, BsEye, BsCursor, BsMegaphone, BsBarChart, BsPerson, BsGrid, BsSearch, BsSortDown } from "react-icons/bs";
 
 const Dashboard = ({ user }) => {
+  const [selectedAdForStats, setSelectedAdForStats] = useState(null);
   const [userData, setUserData] = useState(null);
   const [showNewAdModal, setShowNewAdModal] = useState(false);
   const [showActivateAdModal, setShowActivateAdModal] = useState(false);
@@ -105,6 +106,11 @@ const Dashboard = ({ user }) => {
     setToastMessage("Loading ad details for editing");
     setShowToast(true);
   };
+  //Add state & click Handler for selected stat Ad
+const handleDetailsButton = (adId) => {
+  setSelectedAdForStats(adId);
+  setActiveTab("stats");
+};
 
   // Dynamic counts based on ad data
   const totalAdsCount = userData?.ads ? userData.ads.length : 0;
@@ -280,7 +286,10 @@ const Dashboard = ({ user }) => {
                     {usertype === 'ADVERTISER' && (
                       <Nav.Link
                         active={activeTab === "stats"}
-                        onClick={() => setActiveTab("stats")}
+                        onClick={() => {
+                          setSelectedAdForStats(null);
+                          setActiveTab("stats");
+                        }}
                         className="d-flex align-items-center px-3 py-2"
                         style={activeTab === "stats"
                           ? { backgroundColor: '#fff', color: '#3C3489', fontWeight: 600, borderRadius: 8, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
@@ -574,6 +583,7 @@ const Dashboard = ({ user }) => {
     {/* Card Action Footer */}
     <Card.Footer className="bg-white border-0 p-3">
       <div className="d-flex justify-content-between align-items-center">
+    <div className="d-flex gap-2">
         <Button
           variant="outline-secondary"
           size="sm"
@@ -583,20 +593,30 @@ const Dashboard = ({ user }) => {
         >
           <BsPencil className="me-1" /> Edit
         </Button>
-        {Number(ad.isactive) !== 1 && (
-          <Button
-            variant="success"
-            size="sm"
-            id={ad.id}
-            onClick={handleActivateButton}
-            className="rounded-2 px-3 fw-medium"
-            style={{ backgroundColor: '#10B981', border: 'none' }}
-          >
-            Activate
-          </Button>
-        )}
-      </div>
-    </Card.Footer>
+      <Button
+        variant="outline-primary"
+        size="sm"
+        onClick={() => handleDetailsButton(ad.id)}
+        className="d-flex align-items-center rounded-2 px-3"
+      >
+        <BsBarChart className="me-1" /> Details
+      </Button>
+    </div>
+
+    {Number(ad.isactive) !== 1 && (
+      <Button
+        variant="success"
+        size="sm"
+        id={ad.id}
+        onClick={handleActivateButton}
+        className="rounded-2 px-3 fw-medium"
+        style={{ backgroundColor: '#10B981', border: 'none' }}
+      >
+        Activate
+      </Button>
+    )}
+  </div>
+</Card.Footer>
   </Card>
 </Col>
                       ))}
@@ -633,13 +653,25 @@ const Dashboard = ({ user }) => {
                 )}
               </>
             )}
-
-            {activeTab === "stats" && (
-              <>
-                <h4 className="mb-4">Your Ad Statistics</h4>
-                <Statistics adsData={stats} />
-              </>
-            )}
+{/* selectedAdForStats to the Statistics Component
+Update the activeTab === "stats" section */}
+                    {activeTab === "stats" && (
+                    <>
+                      <div className="d-flex justify-content-between align-items-center mb-4">
+                        <h4>Your Ad Statistics</h4>
+                        {selectedAdForStats && (
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={() => setSelectedAdForStats(null)}
+                          >
+                            Clear Selection (Show All)
+                          </Button>
+                        )}
+                      </div>
+                      <Statistics adsData={stats} selectedAdId={selectedAdForStats} />
+                    </>
+                  )}
 
             {activeTab === "profile" && (
               <>
