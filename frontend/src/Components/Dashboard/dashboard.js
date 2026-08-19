@@ -22,8 +22,23 @@ const Dashboard = ({ user }) => {
   const [activeTab, setActiveTab] = useState("ads");
   const [stats, setStats] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all"); // all | active | inactive
+  const [statusFilter, setStatusFilter] = useState("all"); // all | active | inactive | expired
   const [sortBy, setSortBy] = useState("date_new");
+
+  // New States for Expired Audit & Re-Launch Modals
+  const [showExpiredAuditModal, setShowExpiredAuditModal] = useState(false);
+  const [showReLaunchModal, setShowReLaunchModal] = useState(false);
+  const [selectedExpiredAd, setSelectedExpiredAd] = useState(null);
+  const [reLaunchForm, setReLaunchForm] = useState({
+    title: "",
+    description: "",
+    targetUrl: "",
+    mediaUrl: "",
+    startDate: "",
+    endDate: "",
+    budget: "",
+    isEditingCreative: false
+  });
 
   const navigate = useNavigate();
   const usertype = user?.usertype || localStorage.getItem("usertype");
@@ -114,8 +129,9 @@ const handleDetailsButton = (adId) => {
 
   // Dynamic counts based on ad data
   const totalAdsCount = userData?.ads ? userData.ads.length : 0;
-  const activeAdsCount = userData?.ads ? userData.ads.filter(ad => Number(ad.isactive) === 1).length : 0;
-  const inactiveAdsCount = userData?.ads ? userData.ads.filter(ad => Number(ad.isactive) !== 1).length : 0;
+  const activeAdsCount = userData?.ads ? userData.ads.filter(ad => Number(ad.isactive) === 1 && Number(ad.is_expired) !== 1 && ad.status !== 'expired').length : 0;
+  const inactiveAdsCount = userData?.ads ? userData.ads.filter(ad => Number(ad.isactive) !== 1 && Number(ad.is_expired) !== 1 && ad.status !== 'expired').length : 0;
+  const expiredAdsCount = userData?.ads ? userData.ads.filter(ad => Number(ad.is_expired) === 1 || ad.status === 'expired').length : 0;
 
   // Search + Status Filter + Sort
   const getFilteredAndSortedAds = () => {
@@ -131,9 +147,11 @@ const handleDetailsButton = (adId) => {
     }
 
     if (statusFilter === "active") {
-      result = result.filter(ad => Number(ad.isactive) === 1);
+      result = result.filter(ad => Number(ad.isactive) === 1 && Number(ad.is_expired) !== 1 && ad.status !== 'expired');
     } else if (statusFilter === "inactive") {
-      result = result.filter(ad => Number(ad.isactive) !== 1);
+      result = result.filter(ad => Number(ad.isactive) !== 1 && Number(ad.is_expired) !== 1 && ad.status !== 'expired');
+    } else if (statusFilter === "expired") {
+      result = result.filter(ad => Number(ad.is_expired) === 1 || ad.status === 'expired');
     }
 
     result.sort((a, b) => {
@@ -375,11 +393,13 @@ const handleDetailsButton = (adId) => {
                             {statusFilter === "all" && "Total Ads"}
                             {statusFilter === "active" && "Total Active Ads"}
                             {statusFilter === "inactive" && "Total Inactive Ads"}
+                            {statusFilter === "expired" && "Total Expired Ads"}
                           </div>
                           <div className="fs-3 fw-bold">
                             {statusFilter === "all" && totalAdsCount}
                             {statusFilter === "active" && activeAdsCount}
                             {statusFilter === "inactive" && inactiveAdsCount}
+                            {statusFilter === "expired" && expiredAdsCount}
                           </div>
                         </div>
                         <div
@@ -387,10 +407,12 @@ const handleDetailsButton = (adId) => {
                           style={{
                             backgroundColor:
                               statusFilter === "active" ? '#e8f5e9' :
-                              statusFilter === "inactive" ? '#ffebee' : '#ede7f6',
+                              statusFilter === "inactive" ? '#ffebee' :
+                              statusFilter === "expired" ? '#ffebee' : '#ede7f6',
                             color:
                               statusFilter === "active" ? '#2e7d32' :
-                              statusFilter === "inactive" ? '#c62828' : '#512da8'
+                              statusFilter === "inactive" ? '#c62828' :
+                              statusFilter === "expired" ? '#c62828' : '#512da8'
                           }}
                         >
                           <BsMegaphone size={20} />
@@ -438,6 +460,13 @@ const handleDetailsButton = (adId) => {
                     >
                       Inactive
                     </Button>
+                    <Button
+                      size="sm"
+                      variant={statusFilter === "expired" ? "danger" : "outline-secondary"}
+                      onClick={() => setStatusFilter("expired")}
+                    >
+                      Expired
+                    </Button>
                   </ButtonGroup>
 
                   <Dropdown className="ms-auto">
@@ -469,67 +498,13 @@ const handleDetailsButton = (adId) => {
                   filteredAds.length > 0 ? (
                     <Row xs={1} md={2} lg={3} className="g-4">
                       {filteredAds.map(ad => (
-                        // <Col key={ad.id}>
-                        //   <Card className="h-100 shadow-sm hover-shadow" style={{ position: 'relative' }}>
-                        //     <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10 }}>
-                        //       {Number(ad.isactive) === 1
-                        //         ? <Badge bg="success" pill>✓ Active</Badge>
-                        //         : <Badge bg="secondary" pill>Inactive</Badge>
-                        //       }
-                        //     </div>
-                        //     <Card.Img
-                        //       variant="top"
-                        //       src={ad.ad_url}
-                        //       alt={ad.title}
-                        //       style={{ height: '180px', objectFit: 'cover' }}
-                        //     />
-                        //     <Card.Body>
-                        //       <Card.Title>{ad.title}</Card.Title>
-                        //       <Card.Text className="text-muted small">
-                        //         {ad.description.length > 100 ?
-                        //           `${ad.description.substring(0, 100)}...` :
-                        //           ad.description
-                        //         }
-                        //       </Card.Text>
-                        //       <div className="d-flex gap-3 mt-2 pt-2 border-top">
-                        //         <span className="small text-muted d-flex align-items-center">
-                        //           <BsEye className="me-1" /> {ad.views ?? 0} views
-                        //         </span>
-                        //         <span className="small text-muted d-flex align-items-center">
-                        //           <BsCursor className="me-1" /> {ad.clicks ?? 0} clicks
-                        //         </span>
-                        //       </div>
-                        //     </Card.Body>
-                        //     <Card.Footer className="bg-white border-0">
-                        //       <div className="d-flex justify-content-between align-items-center">
-                        //         <Button
-                        //           variant="outline-secondary"
-                        //           size="sm"
-                        //           id={ad.id}
-                        //           onClick={handleEditButton}
-                        //           className="d-flex align-items-center"
-                        //         >
-                        //           <BsPencil className="me-1" /> Edit
-                        //         </Button>
-                        //         {Number(ad.isactive) !== 1 && (
-                        //           <Button
-                        //             variant="success"
-                        //             size="sm"
-                        //             id={ad.id}
-                        //             onClick={handleActivateButton}
-                        //           >
-                        //             Activate
-                        //           </Button>
-                        //         )}
-                        //       </div>
-                        //     </Card.Footer>
-                        //   </Card>
-                        // </Col>
                         <Col key={ad.id}>
   <Card className="h-100 glass-card border-0">
-    {/* Dynamic Active/Inactive Badge */}
+    {/* Dynamic Badge */}
     <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}>
-      {Number(ad.isactive) === 1 ? (
+      {(Number(ad.is_expired) === 1 || ad.status === 'expired') ? (
+        <Badge pill bg="danger" style={{ padding: '6px 12px' }}>EXPIRED</Badge>
+      ) : Number(ad.isactive) === 1 ? (
         <Badge
           pill
           style={{
@@ -582,41 +557,55 @@ const handleDetailsButton = (adId) => {
 
     {/* Card Action Footer */}
     <Card.Footer className="bg-white border-0 p-3">
-  <div className="d-flex justify-content-between align-items-center">
-    <div className="d-flex gap-2">
-      <Button
-        variant="outline-secondary"
-        size="sm"
-        id={ad.id}
-        onClick={handleEditButton}
-        className="d-flex align-items-center rounded-2 px-3"
-      >
-        <BsPencil className="me-1" /> Edit
-      </Button>
-      <Button
-        variant="outline-primary"
-        size="sm"
-        onClick={() => handleDetailsButton(ad.id)}
-        className="d-flex align-items-center rounded-2 px-3"
-      >
-        <BsBarChart className="me-1" /> Details
-      </Button>
-    </div>
+      {(Number(ad.is_expired) === 1 || ad.status === 'expired') ? (
+        <Button
+          variant="outline-dark"
+          size="sm"
+          className="w-100 fw-semibold rounded-2 py-2"
+          onClick={() => {
+            setSelectedExpiredAd(ad);
+            setShowExpiredAuditModal(true);
+          }}
+        >
+          Full History Details
+        </Button>
+      ) : (
+        <div className="d-flex justify-content-between align-items-center">
+          <div className="d-flex gap-2">
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              id={ad.id}
+              onClick={handleEditButton}
+              className="d-flex align-items-center rounded-2 px-3"
+            >
+              <BsPencil className="me-1" /> Edit
+            </Button>
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={() => handleDetailsButton(ad.id)}
+              className="d-flex align-items-center rounded-2 px-3"
+            >
+              <BsBarChart className="me-1" /> Details
+            </Button>
+          </div>
 
-    {Number(ad.isactive) !== 1 && (
-      <Button
-        variant="success"
-        size="sm"
-        id={ad.id}
-        onClick={handleActivateButton}
-        className="rounded-2 px-3 fw-medium"
-        style={{ backgroundColor: '#10B981', border: 'none' }}
-      >
-        Activate
-      </Button>
-    )}
-  </div>
-</Card.Footer>
+          {Number(ad.isactive) !== 1 && (
+            <Button
+              variant="success"
+              size="sm"
+              id={ad.id}
+              onClick={handleActivateButton}
+              className="rounded-2 px-3 fw-medium"
+              style={{ backgroundColor: '#10B981', border: 'none' }}
+            >
+              Activate
+            </Button>
+          )}
+        </div>
+      )}
+    </Card.Footer>
   </Card>
 </Col>
                       ))}
@@ -701,6 +690,171 @@ Update the activeTab === "stats" section */}
           </footer>
         </Container>
       ) : null}
+
+      {/* 1. Expired Campaign Audit Modal */}
+      {selectedExpiredAd && (
+        <div className={`modal fade ${showExpiredAuditModal ? 'show d-block' : 'd-none'}`} tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content rounded-4 p-3 border-0">
+              <div className="modal-header border-0 pb-0">
+                <h5 className="fw-bold">Expired Campaign Audit: {selectedExpiredAd.title} (ID: #{selectedExpiredAd.id || 'AD1045'})</h5>
+                <button type="button" className="btn-close" onClick={() => setShowExpiredAuditModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <div className="p-3 mb-3 bg-light rounded-3">
+                  <span className="text-muted small fw-semibold d-block mb-2">Cumulative Lifetime Metrics</span>
+                  <Row className="text-center g-2">
+                    <Col><div className="bg-white p-2 rounded shadow-sm"><strong>Total Views</strong><div className="fs-5 fw-bold text-primary">15,230</div></div></Col>
+                    <Col><div className="bg-white p-2 rounded shadow-sm"><strong>Clicks</strong><div className="fs-5 fw-bold">1,115</div></div></Col>
+                    <Col><div className="bg-white p-2 rounded shadow-sm"><strong>CTR</strong><div className="fs-5 fw-bold text-success">7.32%</div></div></Col>
+                    <Col><div className="bg-white p-2 rounded shadow-sm"><strong>Leads</strong><div className="fs-5 fw-bold">88</div></div></Col>
+                    <Col><div className="bg-white p-2 rounded shadow-sm"><strong>Net Profit</strong><div className="fs-5 fw-bold text-success">$412.50</div></div></Col>
+                  </Row>
+                </div>
+
+                <Row className="g-3 align-items-center">
+                  <Col md={7}>
+                    <div className="border p-3 rounded-3 bg-white">
+                      <span className="small text-muted fw-semibold">Performance Over Time (Clicks)</span>
+                      <div className="text-center py-4 text-muted border border-dashed rounded mt-2" style={{ height: 140 }}>
+                        [Line Chart: Views vs Clicks Trend Graph]
+                      </div>
+                    </div>
+                  </Col>
+                  <Col md={5}>
+                    <div className="border p-3 rounded-3 bg-white">
+                      <span className="small text-muted fw-semibold">Read-only preview</span>
+                      <img src={selectedExpiredAd.ad_url} alt="" className="w-100 rounded mt-2" style={{ height: 90, objectFit: 'cover' }} />
+                      <p className="small text-muted mt-2 mb-0">{selectedExpiredAd.description}</p>
+                    </div>
+                  </Col>
+                </Row>
+              </div>
+              <div className="modal-footer border-0 pt-0">
+                <Button
+                  variant="success"
+                  className="w-100 py-2 fw-semibold"
+                  style={{ backgroundColor: '#10B981', border: 'none' }}
+                  onClick={() => {
+                    setShowExpiredAuditModal(false);
+                    setReLaunchForm({
+                      title: selectedExpiredAd.title,
+                      description: selectedExpiredAd.description,
+                      targetUrl: selectedExpiredAd.target_url || "coffee-promo.local/deals",
+                      mediaUrl: selectedExpiredAd.ad_url,
+                      startDate: "",
+                      endDate: "",
+                      budget: "",
+                      isEditingCreative: false
+                    });
+                    setShowReLaunchModal(true);
+                  }}
+                >
+                  Re-Launch This Ad
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Re-Launch New Version Modal */}
+      <div className={`modal fade ${showReLaunchModal ? 'show d-block' : 'd-none'}`} tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-content rounded-4 p-3 border-0">
+            <div className="modal-header border-0 pb-0">
+              <h5 className="fw-bold">Re-Launch: {reLaunchForm.title} (New Version)</h5>
+              <button type="button" className="btn-close" onClick={() => setShowReLaunchModal(false)}></button>
+            </div>
+            <div className="modal-body">
+              <Form>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <Form.Label className="small fw-semibold mb-0">Campaign Title</Form.Label>
+                  <Button
+                    size="sm"
+                    variant="outline-primary"
+                    style={{ fontSize: 11 }}
+                    onClick={() => setReLaunchForm(prev => ({ ...prev, isEditingCreative: !prev.isEditingCreative }))}
+                  >
+                    Edit Ad Copy & Creative
+                  </Button>
+                </div>
+                <Form.Control
+                  type="text"
+                  value={reLaunchForm.title}
+                  disabled={!reLaunchForm.isEditingCreative}
+                  onChange={(e) => setReLaunchForm({ ...reLaunchForm, title: e.target.value })}
+                  className="mb-3"
+                />
+
+                <Form.Label className="small fw-semibold">Ad Description</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  value={reLaunchForm.description}
+                  disabled={!reLaunchForm.isEditingCreative}
+                  onChange={(e) => setReLaunchForm({ ...reLaunchForm, description: e.target.value })}
+                  className="mb-3"
+                />
+
+                <Form.Label className="small fw-semibold">Target URL</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={reLaunchForm.targetUrl}
+                  disabled={!reLaunchForm.isEditingCreative}
+                  onChange={(e) => setReLaunchForm({ ...reLaunchForm, targetUrl: e.target.value })}
+                  className="mb-3"
+                />
+
+                <Form.Label className="small fw-semibold">New Run Dates (Duration)</Form.Label>
+                <Row className="g-2 mb-3">
+                  <Col>
+                    <Form.Control
+                      type="date"
+                      placeholder="Start Date"
+                      value={reLaunchForm.startDate}
+                      onChange={(e) => setReLaunchForm({ ...reLaunchForm, startDate: e.target.value })}
+                    />
+                  </Col>
+                  <Col>
+                    <Form.Control
+                      type="date"
+                      placeholder="End Date"
+                      value={reLaunchForm.endDate}
+                      onChange={(e) => setReLaunchForm({ ...reLaunchForm, endDate: e.target.value })}
+                    />
+                  </Col>
+                </Row>
+
+                <Form.Label className="small fw-semibold">New Budget Allocation</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter budget (e.g., $500)"
+                  value={reLaunchForm.budget}
+                  onChange={(e) => setReLaunchForm({ ...reLaunchForm, budget: e.target.value })}
+                  className="mb-2"
+                />
+                <span className="text-muted" style={{ fontSize: 11 }}>Parent Ad: #{selectedExpiredAd?.id || 'AD1045'} (Frozen History)</span>
+              </Form>
+            </div>
+            <div className="modal-footer border-0 pt-0">
+              <Button
+                variant="success"
+                className="w-100 py-2 fw-semibold"
+                style={{ backgroundColor: '#10B981', border: 'none' }}
+                onClick={() => {
+                  setShowReLaunchModal(false);
+                  setToastMessage("New campaign version successfully launched!");
+                  setShowToast(true);
+                  fetchData();
+                }}
+              >
+                Launch New Version
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <ActivateAdModal
         setShowActivateAdModal={setShowActivateAdModal}
