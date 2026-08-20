@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../../api';
 import { 
   Button, 
@@ -10,7 +10,36 @@ import {
   Alert, 
   Spinner 
 } from 'react-bootstrap';
-import { BsUpload, BsCheck2Circle, BsImage } from 'react-icons/bs';
+import { 
+  BsUpload, BsCheck2Circle, BsImage, BsTag, BsLayers, 
+  BsPencilSquare, BsCardText, BsGeoAlt 
+} from 'react-icons/bs';
+
+// Allowed creative formats: [width, height, label]
+const ALLOWED_SPECS = [
+  { w: 1200, h: 628, label: 'Horizontal 16:9 (1200×628, web banners)' },
+  { w: 1080, h: 1080, label: 'Square 1:1 (1080×1080, feed ads)' },
+  { w: 1080, h: 1920, label: 'Vertical 9:16 (1080×1920, stories)' },
+];
+
+// Reads an image file's pixel dimensions and checks against ALLOWED_SPECS
+function checkImageSpecs(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const { width, height } = img;
+      URL.revokeObjectURL(url);
+      const match = ALLOWED_SPECS.find(s => s.w === width && s.h === height);
+      resolve({ valid: !!match, width, height });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve({ valid: false, width: 0, height: 0 });
+    };
+    img.src = url;
+  });
+}
 
 function NewAdModal(props) {
 
@@ -33,6 +62,8 @@ function NewAdModal(props) {
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [locating, setLocating] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Safely extract the ad ID whether props.selectedAd is an object or primitive ID
   const adId = typeof props.selectedAd === 'object' && props.selectedAd !== null 
@@ -130,6 +161,31 @@ function NewAdModal(props) {
     }
   };
 
+  const setFile = (file) => {
+    if (!file) return;
+    setFormValues((prev) => ({ ...prev, file }));
+    setExistingImageUrl('');
+    if (errors.file) setErrors((prev) => ({ ...prev, file: '' }));
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setDragActive(false);
+  };
+
   const useMyLocation = () => {
     if (!navigator.geolocation) {
       setErrorMessage('Geolocation is not supported by your browser');
@@ -197,6 +253,16 @@ function NewAdModal(props) {
       
       if (formValues.file.size > maxSize) {
         setErrorMessage('File size must be less than 5MB');
+        return;
+      }
+
+      // Enforce required creative dimensions (16:9, 1:1, or 9:16)
+      const specCheck = await checkImageSpecs(formValues.file);
+      if (!specCheck.valid) {
+        setErrorMessage(
+          `Image must be exactly one of: 1200×628 (16:9), 1080×1080 (1:1), or 1080×1920 (9:16) px. ` +
+          `Your image is ${specCheck.width}×${specCheck.height}px.`
+        );
         return;
       }
     }
@@ -285,7 +351,32 @@ function NewAdModal(props) {
       onHide={() => props.setShowNewAdModal(false)}
       centered
       size="lg"
+      contentClassName="newad-modal-content"
     >
+      {/* Scoped styles: 16px rounded corners + gradient button */}
+      <style>{`
+        .newad-modal-content { border-radius: 16px; overflow: hidden; }
+        .gradient-btn {
+          background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+          border: none;
+        }
+        .gradient-btn:hover, .gradient-btn:focus {
+          background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+        }
+        .dropzone {
+          border: 2px dashed #cbd5e1;
+          border-radius: 12px;
+          background: #f8fafc;
+          text-align: center;
+          padding: 24px 16px;
+          cursor: pointer;
+          transition: border-color .15s, background .15s;
+        }
+        .dropzone.active {
+          border-color: #6366f1;
+          background: #eef2ff;
+        }
+      `}</style>
       <Modal.Header closeButton>
         <Modal.Title>{isEditMode ? 'Edit Advertisement' : 'Create New Advertisement'}</Modal.Title>
       </Modal.Header>
@@ -353,7 +444,9 @@ function NewAdModal(props) {
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Ad Type</Form.Label>
+                  <Form.Label className="d-flex align-items-center">
+                    <BsTag className="me-2" /> Ad Type
+                  </Form.Label>
                   <Form.Select 
                     name="type" 
                     value={formValues.type} 
@@ -373,27 +466,37 @@ function NewAdModal(props) {
               
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>
+                  <Form.Label className="d-flex align-items-center">
+                    <BsUpload className="me-2" />
                     {isEditMode ? 'Replace Image (optional)' : 'Upload File'}
                   </Form.Label>
-                  <div className="input-group">
-                    <Form.Control 
-                      type="file" 
-                      name="file" 
+                  <div
+                    className={`dropzone${dragActive ? ' active' : ''}`}
+                    onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                  >
+                    <BsUpload size={20} className="mb-2 text-primary" />
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>
+                      Click to upload or drag &amp; drop file
+                    </div>
+                    <small className="text-muted">PNG, JPG, or WEBP up to 5MB</small>
+                    <Form.Control
+                      ref={fileInputRef}
+                      type="file"
+                      name="file"
                       accept="image/jpeg,image/png,image/webp"
                       onChange={handleChange}
                       isInvalid={!!errors.file}
-                      className="form-control"
+                      className="d-none"
                     />
-                    <span className="input-group-text">
-                      <BsUpload />
-                    </span>
                   </div>
-                  <Form.Control.Feedback type="invalid">
-                    {errors.file}
-                  </Form.Control.Feedback>
+                  {errors.file && (
+                    <div className="invalid-feedback d-block">{errors.file}</div>
+                  )}
                   {formValues.file && (
-                    <small className="text-muted">
+                    <small className="text-muted d-block mt-1">
                       Selected: {formValues.file.name}
                     </small>
                   )}
@@ -404,7 +507,9 @@ function NewAdModal(props) {
             <Row>
               <Col md={12}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Title</Form.Label>
+                  <Form.Label className="d-flex align-items-center">
+                    <BsPencilSquare className="me-2" /> Title
+                  </Form.Label>
                   <Form.Control
                     type="text"
                     name="title"
@@ -423,7 +528,9 @@ function NewAdModal(props) {
             <Row>
               <Col md={12}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Description</Form.Label>
+                  <Form.Label className="d-flex align-items-center">
+                    <BsCardText className="me-2" /> Description
+                  </Form.Label>
                   <Form.Control
                     as="textarea"
                     rows={3}
@@ -443,7 +550,9 @@ function NewAdModal(props) {
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Pincode</Form.Label>
+                  <Form.Label className="d-flex align-items-center">
+                    <BsGeoAlt className="me-2" /> Pincode
+                  </Form.Label>
                   <div className="input-group">
                     <Form.Control
                       type="text"
@@ -474,7 +583,9 @@ function NewAdModal(props) {
               
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Display Level</Form.Label>
+                  <Form.Label className="d-flex align-items-center">
+                    <BsLayers className="me-2" /> Display Level
+                  </Form.Label>
                   <Form.Select
                     name="displaylevel"
                     value={formValues.displaylevel}
@@ -502,7 +613,7 @@ function NewAdModal(props) {
           Cancel
         </Button>
         <Button 
-          variant="primary" 
+          className="gradient-btn"
           onClick={handleSubmit} 
           disabled={loading || success || fetchingAd}
         >
