@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
 
     res.setHeader("Content-Type", "application/javascript");
-    // add logic for setting height width and posistion as per user request;
+    // add logic for setting height width and position as per user request;
     //will also need to add UI logic in My APPs where user can select height width and position and script tag should be created accordingly
     const sdkScript = `
     (function() {

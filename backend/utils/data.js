@@ -1,5 +1,6 @@
 const mysql = require('mysql2/promise');
 const { MongoClient } = require("mongodb");
+require('dotenv').config()
 
 const uri = "mongodb://localhost:27017/ads";
 const client = new MongoClient(uri);

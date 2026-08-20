@@ -114,10 +114,10 @@ const AuthPage = ({ setUser }) => {
     signupdata.password === signupdata.confirmpassword;
 
   return (
-    <Container className="d-flex justify-content-center align-items-center vh-100">
-      <Row>
-        <Col md={12} className="p-4 shadow rounded bg-white" style={{ minWidth: "350px" }}>
-          <div className="text-center mb-4">
+    <Container className="min-vh-100 d-flex justify-content-center align-items-center">
+      <Row className="justify-content-center mt-1 mb-1">
+        <Col md={12} className="p-5 shadow rounded bg-white" style={{ minWidth: "325px" }}>
+          <div className="text-center mb-1">
             <img src={logo} alt="Naav Logo" height={80} width={80} />
             <h3 className="mt-2">Welcome to Naav</h3>
           </div>
@@ -134,7 +134,7 @@ const AuthPage = ({ setUser }) => {
             {/* Login Tab */}
             <Tab eventKey="login" title="Login">
               <Form onSubmit={handleSignin}>
-                <Form.Group className="mb-3">
+                <Form.Group className="mb-1">
                   <Form.Label>Username</Form.Label>
                   <Form.Control
                     type="text"
@@ -169,7 +169,7 @@ const AuthPage = ({ setUser }) => {
               <Form onSubmit={handleSignup}>
                 <Row>
                   <Col>
-                    <Form.Group className="mb-3">
+                    <Form.Group className="mb-1">
                       <Form.Label>Username</Form.Label>
                       <Form.Control
                         ref={usernameRef} // Attached the reference here
@@ -217,7 +217,7 @@ const AuthPage = ({ setUser }) => {
                   </Col>
                 </Row>
 
-                <Form.Group className="mb-3">
+                <Form.Group className="mb-1">
                   <Form.Label>Email</Form.Label>
                   <Form.Control
                     type="email"
@@ -229,7 +229,7 @@ const AuthPage = ({ setUser }) => {
                   />
                 </Form.Group>
 
-                <Form.Group className="mb-3">
+                <Form.Group className="mb-1">
                   <Form.Label>Phone</Form.Label>
                   <Form.Control
                     type="tel"
@@ -283,7 +283,7 @@ const AuthPage = ({ setUser }) => {
             </Tab>
           </Tabs>
 
-          <div className="text-center mt-3">
+          <div className="text-center">
             Want to use our Ad Service on your Website or App?{" "}
             <a href="#">Developer Login</a>
           </div>

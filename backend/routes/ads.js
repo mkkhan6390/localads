@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require("../utils/data");
 const {authenticateuser, authenticateapikey} = require('../utils/authentication')
 const {getpincodedetails, getAdsByRegion, isValidLandingPageUrl} = require('../utils/functions')
-const {reverseGeocode} = require('../utils/geocoder')
+const {reverseGeocode, pincodeToLocation} = require('../utils/geocoder')
 require('dotenv').config()
 
 // MIDDLEWARE: if no pincode was submitted but latitude/longitude were,
@@ -24,7 +24,20 @@ const upload = multer({ storage });
 
 
 // POST CALL TO UPLOAD AND CREATE AN ADVERTISEMENT
-router.post("/create", upload.single("file"), authenticateuser, resolvePincodeFromCoordinates, getpincodedetails, async (req, res) => {
+
+router.post("/create", (req, res, next) => {
+  console.log('req.body:', req.body);
+  upload.single("file")(req, res, (err) => {
+    if (err) {
+      console.error("Upload error:", err);
+      return res.status(400).json({ error: err.message });
+    }
+
+    console.log("Uploaded file:", req.file);
+    next();
+  });
+}, authenticateuser, resolvePincodeFromCoordinates, getpincodedetails, async (req, res) => {
+
   
 	try {
     const file = req.file;
@@ -38,21 +51,25 @@ router.post("/create", upload.single("file"), authenticateuser, resolvePincodeFr
     const pincode = req.body.pincode;
     const displaylevel = req.body.displaylevel;
     const type = req.body.type;
-	
+    console.log(1)
     // Validate required fields
     const requiredFields = { adtitle, addesc, pincode, displaylevel, type };
     if (!file) return res.status(422).json({ error: "Ad file missing" });
+    console.log(2)
 
     const missingFields = Object.entries(requiredFields)
       .filter(([_, value]) => !value)
       .map(([key]) => key);
       
+          console.log(3)
+
     if (missingFields.length > 0) {
       return res.status(422).json({ 
         error: "Required fields missing", 
         missingFields 
       });
     }
+    console.log(4)
 
     // Cloudinary already processed the file, URL is available
     const fileurl = file.path;
@@ -73,6 +90,7 @@ router.post("/create", upload.single("file"), authenticateuser, resolvePincodeFr
     ];
 
     const result = await db.query(insertQuery, params);
+    console.log(5)
 
     if (result.insertId) {
       return res.status(201).json({
@@ -82,12 +100,15 @@ router.post("/create", upload.single("file"), authenticateuser, resolvePincodeFr
         adId: result.insertId
       });
     }
-    
+        console.log(6)
+
     throw new Error("Database insertion failed");
-    
+        console.log(7)
+
   } catch (error) {
     console.error("Error creating ad:", error);
-    
+        console.log(8)
+
     // Handle specific Cloudinary errors
     if (error.http_code) {
       return res.status(error.http_code).json({
@@ -95,7 +116,8 @@ router.post("/create", upload.single("file"), authenticateuser, resolvePincodeFr
         details: error.message
       });
     }
-    
+        console.log(9)
+
     return res.status(500).json({
       error: "Unable to process request",
       details: process.env.NODE_ENV === 'DEV' ? error.message : undefined

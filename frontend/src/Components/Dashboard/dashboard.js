@@ -24,8 +24,11 @@ const Dashboard = ({ user }) => {
   const [statusFilter, setStatusFilter] = useState("all"); // all | active | inactive
   const [sortBy, setSortBy] = useState("date_new");
 
+
   const navigate = useNavigate();
-  const usertype = user?.usertype || localStorage.getItem("usertype");
+  const usertype = String(user?.usertype || localStorage.getItem("usertype") || "")
+    .trim()
+    .toUpperCase();
 
   const fetchData = async () => {
     setLoading(true);
@@ -64,7 +67,6 @@ const Dashboard = ({ user }) => {
       try {
         const userid = localStorage.getItem('userid');
         const response = await api.post(`http://localhost:5000/dashboard/stats/${userid}`);
-        console.log("Fetched Stats from dashboard:", response.data);
         setStats(response.data);
       } catch (err) {
         console.log(err);
@@ -88,7 +90,7 @@ const Dashboard = ({ user }) => {
   };
 
   const handleActivateButton = (event) => {
-    setSelectedAd(event.target.id);
+    setSelectedAd(event.currentTarget.id);
     setShowActivateAdModal(true);
     setToastMessage("Preparing to activate your ad");
     setShowToast(true);
@@ -101,21 +103,19 @@ const Dashboard = ({ user }) => {
     setShowToast(true);
   };
 
-  // Dynamic counts based on ad data
   const totalAdsCount = userData?.ads ? userData.ads.length : 0;
   const activeAdsCount = userData?.ads ? userData.ads.filter(ad => Number(ad.isactive) === 1).length : 0;
   const inactiveAdsCount = userData?.ads ? userData.ads.filter(ad => Number(ad.isactive) !== 1).length : 0;
 
-  // Search + Status Filter + Sort
   const getFilteredAndSortedAds = () => {
     if (!userData?.ads) return [];
     let result = [...userData.ads];
 
     if (searchQuery.trim() !== "") {
-      const q = searchQuery.trim().toLowerCase();
+      const query = searchQuery.trim().toLowerCase();
       result = result.filter(ad =>
-        (ad.title || "").toLowerCase().includes(q) ||
-        (ad.description || "").toLowerCase().includes(q)
+        (ad.title || "").toLowerCase().includes(query) ||
+        (ad.description || "").toLowerCase().includes(query)
       );
     }
 
@@ -125,17 +125,17 @@ const Dashboard = ({ user }) => {
       result = result.filter(ad => Number(ad.isactive) !== 1);
     }
 
-    result.sort((a, b) => {
+    result.sort((firstAd, secondAd) => {
       switch (sortBy) {
         case "date_old":
-          return new Date(a.added_date || 0) - new Date(b.added_date || 0);
+          return new Date(firstAd.added_date || 0) - new Date(secondAd.added_date || 0);
         case "views":
-          return (Number(b.views) || 0) - (Number(a.views) || 0);
+          return (Number(secondAd.views) || 0) - (Number(firstAd.views) || 0);
         case "clicks":
-          return (Number(b.clicks) || 0) - (Number(a.clicks) || 0);
+          return (Number(secondAd.clicks) || 0) - (Number(firstAd.clicks) || 0);
         case "date_new":
         default:
-          return new Date(b.added_date || 0) - new Date(a.added_date || 0);
+          return new Date(secondAd.added_date || 0) - new Date(firstAd.added_date || 0);
       }
     });
 
@@ -210,6 +210,24 @@ const Dashboard = ({ user }) => {
     </Popover>
   );
 
+  if (loading) {
+    return (
+      <div className="min-vh-100 d-flex justify-content-center align-items-center">
+        <Spinner animation="border" role="status" variant="primary">
+          <span className="visually-hidden">Loading dashboard...</span>
+        </Spinner>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-vh-100 d-flex justify-content-center align-items-center p-3">
+        <Alert variant="danger" className="mb-0">{error}</Alert>
+      </div>
+    );
+  }
+
   return (
     <div className="min-vh-100 d-flex flex-column" style={{ backgroundColor: '#FFFBEB' }}>
       <ToastContainer position="top-end" className="p-3" style={{ zIndex: 1060 }}>
@@ -220,129 +238,70 @@ const Dashboard = ({ user }) => {
           <Toast.Body>{toastMessage}</Toast.Body>
         </Toast>
       </ToastContainer>
-
-      {loading ? (
-        <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
-          <Spinner animation="border" role="status" variant="primary">
-            <span className="visually-hidden">Loading...</span>
-          </Spinner>
-        </div>
-      ) : error ? (
-        <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
-          <Alert variant="danger">{error}</Alert>
-        </div>
-      ) : userData ? (
-        <Container fluid className="flex-grow-1 d-flex flex-column px-0">
-          <div className="sticky-top pt-3 px-3" style={{ zIndex: 1030 }}>
-            <Navbar
-              expand="lg"
-              variant="light"
-              className="shadow-sm mx-auto px-3"
-              style={{
-                backgroundColor: 'rgba(247, 246, 253, 0.85)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                borderRadius: '16px',
-                border: '1px solid rgba(255, 255, 255, 0.6)'
-              }}
-            >
-              <Container fluid>
-                <Navbar.Brand as={Link} to="/" className="d-flex align-items-center gap-2">
-                  <span className="fs-2">
-                    <span className="fw-light text-secondary">Local</span>
-                    <span className="fw-bold text-primary">Ads</span>
-                    <i className="bi bi-megaphone-fill text-primary fs-3"></i>
-                  </span>
-                </Navbar.Brand>
-                <Navbar.Toggle aria-controls="main-navbar" />
-                <Navbar.Collapse id="main-navbar">
-                  <Nav
-                    className="mx-auto my-2 my-lg-0 p-1"
-                    style={{ backgroundColor: 'rgba(236, 234, 254, 0.7)', borderRadius: 10, gap: 2 }}
+        <Container fluid className="flex-grow-1 d-flex flex-column">
+          {/* 🔹 Navbar with Tabs */}
+          <Navbar expand="lg" className="bg-body-tertiary shadow-sm sticky-top">
+            <Container fluid>
+              <Navbar.Brand className="d-flex align-items-center">
+                {/* <img src={logo} alt="Naav Logo" height={40} width={70} className="me-2" /> */}
+                <Link to='/'>
+                  <span className="d-none d-md-inline">Local Ads</span>
+                </Link>
+              </Navbar.Brand>
+              <Navbar.Toggle aria-controls="main-navbar" />
+              <Navbar.Collapse id="main-navbar">
+                <Nav className="me-auto">
+                  {usertype === 'ADVERTISER' && <Nav.Link
+                    active={activeTab === "ads"}
+                    onClick={() => setActiveTab("ads")}
                   >
-                    {usertype === 'ADVERTISER' && (
-                      <Nav.Link
-                        active={activeTab === "ads"}
-                        onClick={() => setActiveTab("ads")}
-                        className="d-flex align-items-center px-3 py-2"
-                        style={activeTab === "ads"
-                          ? { backgroundColor: '#fff', color: '#3C3489', fontWeight: 600, borderRadius: 8, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
-                          : { color: '#666', borderRadius: 8 }}
-                      >
-                        <BsMegaphone className="me-2" size={14} /> Advertisements
-                      </Nav.Link>
-                    )}
-                    {usertype === 'ADVERTISER' && (
-                      <Nav.Link
-                        active={activeTab === "stats"}
-                        onClick={() => setActiveTab("stats")}
-                        className="d-flex align-items-center px-3 py-2"
-                        style={activeTab === "stats"
-                          ? { backgroundColor: '#fff', color: '#3C3489', fontWeight: 600, borderRadius: 8, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
-                          : { color: '#666', borderRadius: 8 }}
-                      >
-                        <BsBarChart className="me-2" size={14} /> Statistics
-                      </Nav.Link>
-                    )}
-                    {usertype === 'DEVELOPER' && (
-                      <Nav.Link
-                        active={activeTab === "apps"}
-                        onClick={() => setActiveTab("apps")}
-                        className="d-flex align-items-center px-3 py-2"
-                        style={activeTab === "apps"
-                          ? { backgroundColor: '#fff', color: '#3C3489', fontWeight: 600, borderRadius: 8, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
-                          : { color: '#666', borderRadius: 8 }}
-                      >
-                        <BsGrid className="me-2" size={14} /> My Apps
-                      </Nav.Link>
-                    )}
-                  </Nav>
-                  <Nav className="ms-auto d-flex align-items-center gap-3">
-                    {usertype === 'ADVERTISER' && (
-                      <Button
-                        size="sm"
-                        className="d-flex align-items-center fw-semibold"
-                        style={{ backgroundColor: '#F59E0B', border: 'none', borderRadius: 8 }}
-                        onClick={handleNewAdButton}
-                      >
-                        <BsPlusCircle className="me-2" /> Create Ad
-                      </Button>
-                    )}
-
-                    <OverlayTrigger
-                      trigger="click"
-                      placement="bottom-end"
-                      rootClose
-                      overlay={profilePopover}
+                    Advertisements
+                  </Nav.Link>}
+                  {usertype === 'ADVERTISER' && <Nav.Link
+                    active={activeTab === "stats"}
+                    onClick={() => setActiveTab("stats")}// update statistics component later to show stats based on usertype
+                  >
+                    Statistics
+                  </Nav.Link>}
+                  <Nav.Link
+                    active={activeTab === "profile"}
+                    onClick={() => setActiveTab("profile")}
+                  >
+                    Profile
+                  </Nav.Link>
+                  {usertype === 'DEVELOPER' && <Nav.Link
+                    active={activeTab === "apps"}
+                    onClick={() => setActiveTab("apps")}
+                  >
+                    My Apps
+                  </Nav.Link>}
+                </Nav>
+                <Nav className="ms-auto d-flex align-items-center">
+                  {usertype === 'ADVERTISER' && activeTab === "ads" && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="me-3 d-flex align-items-center"
+                      onClick={handleNewAdButton}
                     >
-                      <button
-                        type="button"
-                        className="btn p-0 border-0 d-flex align-items-center justify-content-center"
-                        style={{ outline: 'none' }}
-                      >
-                        <span
-                          title={userData.username}
-                          className="d-flex align-items-center justify-content-center fw-semibold"
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: '50%',
-                            backgroundColor: '#EEEDFE',
-                            color: '#3C3489',
-                            fontSize: 13,
-                            cursor: 'pointer',
-                            border: '2px solid #534AB7'
-                          }}
-                        >
-                          {userData.username ? userData.username.slice(0, 2).toUpperCase() : '??'}
-                        </span>
-                      </button>
-                    </OverlayTrigger>
-                  </Nav>
-                </Navbar.Collapse>
-              </Container>
-            </Navbar>
-          </div>
+                      <BsPlusCircle className="me-2" /> Create Ad
+                    </Button>
+                  )}
+                  <span className="me-3 d-none d-md-block">Welcome, <strong>{userData?.username || "User"}</strong></span>
+                  <OverlayTrigger
+                    trigger="click"
+                    placement="bottom-end"
+                    rootClose
+                    overlay={profilePopover}
+                  >
+                    <Button variant="outline-secondary" size="sm" className="d-flex align-items-center">
+                      <BsPerson className="me-2" /> Account
+                    </Button>
+                  </OverlayTrigger>
+                </Nav>
+              </Navbar.Collapse>
+            </Container>
+          </Navbar>
 
           <Container className="py-4 flex-grow-1">
             {activeTab === "ads" && (
@@ -373,10 +332,10 @@ const Dashboard = ({ user }) => {
                           style={{
                             backgroundColor:
                               statusFilter === "active" ? '#e8f5e9' :
-                              statusFilter === "inactive" ? '#ffebee' : '#ede7f6',
+                                statusFilter === "inactive" ? '#ffebee' : '#ede7f6',
                             color:
                               statusFilter === "active" ? '#2e7d32' :
-                              statusFilter === "inactive" ? '#c62828' : '#512da8'
+                                statusFilter === "inactive" ? '#c62828' : '#512da8'
                           }}
                         >
                           <BsMegaphone size={20} />
@@ -451,7 +410,7 @@ const Dashboard = ({ user }) => {
                   </Dropdown>
                 </div>
 
-                {userData.ads && userData.ads.length > 0 ? (
+                {userData?.ads && userData.ads.length > 0 ? (
                   filteredAds.length > 0 ? (
                     <Row xs={1} md={2} lg={3} className="g-4">
                       {filteredAds.map(ad => (
@@ -512,88 +471,88 @@ const Dashboard = ({ user }) => {
                         //   </Card>
                         // </Col>
                         <Col key={ad.id}>
-  <Card className="h-100 glass-card border-0">
-    {/* Dynamic Active/Inactive Badge */}
-    <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}>
-      {Number(ad.isactive) === 1 ? (
-        <Badge
-          pill
-          style={{
-            backgroundColor: 'rgba(22, 163, 74, 0.85)',
-            backdropFilter: 'blur(4px)',
-            color: '#fff',
-            padding: '6px 12px'
-          }}
-        >
-          ✓ Active
-        </Badge>
-      ) : (
-        <Badge
-          pill
-          style={{
-            backgroundColor: 'rgba(100, 116, 139, 0.85)',
-            backdropFilter: 'blur(4px)',
-            color: '#fff',
-            padding: '6px 12px'
-          }}
-        >
-          Inactive
-        </Badge>
-      )}
-    </div>
+                          <Card className="h-100 glass-card border-0">
+                            {/* Dynamic Active/Inactive Badge */}
+                            <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}>
+                              {Number(ad.isactive) === 1 ? (
+                                <Badge
+                                  pill
+                                  style={{
+                                    backgroundColor: 'rgba(22, 163, 74, 0.85)',
+                                    backdropFilter: 'blur(4px)',
+                                    color: '#fff',
+                                    padding: '6px 12px'
+                                  }}
+                                >
+                                  ✓ Active
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  pill
+                                  style={{
+                                    backgroundColor: 'rgba(100, 116, 139, 0.85)',
+                                    backdropFilter: 'blur(4px)',
+                                    color: '#fff',
+                                    padding: '6px 12px'
+                                  }}
+                                >
+                                  Inactive
+                                </Badge>
+                              )}
+                            </div>
 
-    {/* Ad Image Container with Frosted Text Overlay */}
-    <div className="glass-img-container">
-      <img src={ad.ad_url} alt={ad.title} className="glass-img" />
+                            {/* Ad Image Container with Frosted Text Overlay */}
+                            <div className="glass-img-container">
+                              <img src={ad.ad_url} alt={ad.title} className="glass-img" />
 
-      {/* Frosted Glass Overlay Pane */}
-      <div className="glass-overlay">
-        <h5 className="fw-bold mb-1 text-dark">{ad.title}</h5>
-        <p className="text-secondary small mb-2" style={{ lineHeight: '1.3' }}>
-          {ad.description.length > 80
-            ? `${ad.description.substring(0, 80)}...`
-            : ad.description}
-        </p>
+                              {/* Frosted Glass Overlay Pane */}
+                              <div className="glass-overlay">
+                                <h5 className="fw-bold mb-1 text-dark">{ad.title}</h5>
+                                <p className="text-secondary small mb-2" style={{ lineHeight: '1.3' }}>
+                                  {ad.description.length > 80
+                                    ? `${ad.description.substring(0, 80)}...`
+                                    : ad.description}
+                                </p>
 
-        <div className="d-flex gap-3 pt-1 border-top border-white-50">
-          <span className="small text-muted d-flex align-items-center">
-            <BsEye className="me-1 text-primary" /> {ad.views ?? 0} views
-          </span>
-          <span className="small text-muted d-flex align-items-center">
-            <BsCursor className="me-1 text-primary" /> {ad.clicks ?? 0} clicks
-          </span>
-        </div>
-      </div>
-    </div>
+                                <div className="d-flex gap-3 pt-1 border-top border-white-50">
+                                  <span className="small text-muted d-flex align-items-center">
+                                    <BsEye className="me-1 text-primary" /> {ad.views ?? 0} views
+                                  </span>
+                                  <span className="small text-muted d-flex align-items-center">
+                                    <BsCursor className="me-1 text-primary" /> {ad.clicks ?? 0} clicks
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
 
-    {/* Card Action Footer */}
-    <Card.Footer className="bg-white border-0 p-3">
-      <div className="d-flex justify-content-between align-items-center">
-        <Button
-          variant="outline-secondary"
-          size="sm"
-          id={ad.id}
-          onClick={handleEditButton}
-          className="d-flex align-items-center rounded-2 px-3"
-        >
-          <BsPencil className="me-1" /> Edit
-        </Button>
-        {Number(ad.isactive) !== 1 && (
-          <Button
-            variant="success"
-            size="sm"
-            id={ad.id}
-            onClick={handleActivateButton}
-            className="rounded-2 px-3 fw-medium"
-            style={{ backgroundColor: '#10B981', border: 'none' }}
-          >
-            Activate
-          </Button>
-        )}
-      </div>
-    </Card.Footer>
-  </Card>
-</Col>
+                            {/* Card Action Footer */}
+                            <Card.Footer className="bg-white border-0 p-3">
+                              <div className="d-flex justify-content-between align-items-center">
+                                <Button
+                                  variant="outline-secondary"
+                                  size="sm"
+                                  id={ad.id}
+                                  onClick={handleEditButton}
+                                  className="d-flex align-items-center rounded-2 px-3"
+                                >
+                                  <BsPencil className="me-1" /> Edit
+                                </Button>
+                                {Number(ad.isactive) !== 1 && (
+                                  <Button
+                                    variant="success"
+                                    size="sm"
+                                    id={ad.id}
+                                    onClick={handleActivateButton}
+                                    className="rounded-2 px-3 fw-medium"
+                                    style={{ backgroundColor: '#10B981', border: 'none' }}
+                                  >
+                                    Activate
+                                  </Button>
+                                )}
+                              </div>
+                            </Card.Footer>
+                          </Card>
+                        </Col>
                       ))}
                     </Row>
                   ) : (
@@ -639,8 +598,8 @@ const Dashboard = ({ user }) => {
             {activeTab === "profile" && (
               <>
                 <h4 className="mb-4">Your Profile</h4>
-                <p><strong>Username:</strong> {userData.username}</p>
-                <p><strong>Email:</strong> {userData.email}</p>
+                <p><strong>Username:</strong> {userData?.username || "-"}</p>
+                <p><strong>Email:</strong> {userData?.email || "-"}</p>
                 <Profile user={user} />
               </>
             )}

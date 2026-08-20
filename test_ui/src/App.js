@@ -49,10 +49,10 @@ function App() {
     script.async = true;
 
     // add custom attributes
-    script.setAttribute("username", "Prajakta");
-    script.setAttribute("appid", "72076966-955d-11f1-869f-ac8247e08390");
-    script.setAttribute("apikey", "$2a$10$aXSJV0iQMkLhS/G0J42NbOPt2l9iY/m9iAx0vZPRzy8aLhK5EtbCC");
-    script.setAttribute("adtype", "image");
+    script.setAttribute("username", process.env.USERNAME);
+    script.setAttribute("appid", process.env.APP_ID);
+    script.setAttribute("apikey", process.env.API_KEY);
+    script.setAttribute("adtype", process.env.AD_TYPE);
 
     document.body.appendChild(script);
 

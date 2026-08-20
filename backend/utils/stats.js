@@ -3,16 +3,39 @@ const { getDB } = require('./data')
 async function getAdDashboard(adid, startDate, endDate) {
 
   const db = await getDB();
+
+  //Get stats collection
   const rows = await db.collection("stats").find({
     adid: adid + '',
     //dateUTC: { $gte: startDate, $lte: endDate }
   }).toArray();
+
+  // Get views by pincode
+  const viewsByPincode = await db.collection("views").aggregate([
+    {
+      $match: {adid: String(adid)}
+    },
+    {
+      $group: {_id: "$pincode", views: { $sum: 1 }
+      }
+    },
+    {
+      $sort: {views: -1}
+    }
+  ]).toArray();
+
+  // Convert MongoDB result to frontend-friendly format
+  const formattedViewsByPincode = viewsByPincode.map(item => ({
+    pincode: String(item._id),
+    views: Number(item.views)
+  }));
 
   let total_clicks = 0, unique_clicks = 0, total_views = 0, unique_views = 0;
   const regions = {};
   const apps = {};
   const datetimes = {}; // year -> month -> week# -> day
   console.log(rows)
+
   for (const r of rows) {
     console.log('row:', r)
     total_clicks += r.total_clicks || 0;
@@ -62,7 +85,8 @@ async function getAdDashboard(adid, startDate, endDate) {
     unique_clicks,
     regions,
     apps,
-    datetimes
+    datetimes,
+    viewsByPincode: formattedViewsByPincode
   };
 }
 

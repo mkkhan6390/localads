@@ -1,45 +1,118 @@
-import { Container, Row, Col } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button } from "react-bootstrap";
 
 function Footer() {
   const mutedStyle = { color: 'rgba(255,255,255,0.65)' };
   return (
-    <footer className="bg-dark text-light py-4">
+    <footer className="bg-dark text-light pt-5 pb-3">
       <Container>
-        <Row>
-          <Col md={4} className="mb-4 mb-md-0">
-            <h5>LocalAds</h5>
-            <p style={mutedStyle}>
-              Connecting advertisers with premium platforms for maximum reach and impact.
+        <Row className="gy-4">
+
+          {/* Brand */}
+          <Col lg={4}>
+            <h3 className="fw-bold mb-3">
+              <i className="bi bi-megaphone-fill text-primary me-2"></i>
+              <span className="fw-light text-secondary">Local</span>
+              <span className="fw-bold text-primary">Ads</span>
+            </h3>
+
+            <p className="text-secondary mb-4">
+              Connecting advertisers with premium platforms for maximum
+              reach and impact.
             </p>
           </Col>
-          <Col md={2} className="mb-4 mb-md-0">
-            <h6>Company</h6>
+
+          {/* Company */}
+          <Col sm={6} lg={2}>
+            <h6 className="text-uppercase fw-bold mb-3"> Company </h6>
             <ul className="list-unstyled">
-              <li><a href="#about" style={mutedStyle} className="text-decoration-none">About</a></li>
-              <li><a href="#careers" style={mutedStyle} className="text-decoration-none">Careers</a></li>
-              <li><a href="#contact" style={mutedStyle} className="text-decoration-none">Contact</a></li>
+              <li className="mb-2">
+                <a href="#about" className="text-secondary text-decoration-none">
+                  About
+                </a>
+              </li>
+
+              <li className="mb-2">
+                <a href="#careers" className="text-secondary text-decoration-none">
+                  Careers
+                </a>
+              </li>
+
+              <li>
+                <a href="#contact" className="text-secondary text-decoration-none">
+                  Contact
+                </a>
+              </li>
             </ul>
           </Col>
-          <Col md={2} className="mb-4 mb-md-0">
-            <h6>Resources</h6>
+
+          {/* Resources */}
+          <Col sm={6} lg={2}>
+            <h6 className="text-uppercase fw-bold mb-3">
+              Resources
+            </h6>
+
             <ul className="list-unstyled">
-              <li><a href="#blog" style={mutedStyle} className="text-decoration-none">Blog</a></li>
-              <li><a href="#guides" style={mutedStyle} className="text-decoration-none">Guides</a></li>
-              <li><a href="#help" style={mutedStyle} className="text-decoration-none">Help Center</a></li>
+              <li className="mb-2">
+                <a href="#blog" className="text-secondary text-decoration-none">Blog</a>
+              </li>
+
+              <li className="mb-2">
+                <a href="#guides" className="text-secondary text-decoration-none">Guides</a>
+              </li>
+
+              <li>
+                <a href="#help" className="text-secondary text-decoration-none">Help Center </a>
+              </li>
+
             </ul>
           </Col>
-          <Col md={4}>
-            <h6>Subscribe to our newsletter</h6>
-            <div className="input-group mb-3">
-              <input type="email" className="form-control" placeholder="Enter your email" />
-              <button className="btn btn-primary" type="button">Subscribe</button>
-            </div>
+
+          {/* Newsletter */}
+          <Col lg={4}>
+            <h6 className="text-uppercase fw-bold mb-3">
+              Newsletter
+            </h6>
+
+            <p className="text-secondary small">
+              Stay updated with the latest advertising trends.
+            </p>
+
+            <Form className="d-flex">
+              <Form.Control
+                type="email"
+                placeholder="Enter your email"
+                className="me-2"
+              />
+
+              <Button variant="primary">
+                Subscribe
+              </Button>
+            </Form>
           </Col>
+
         </Row>
-        <hr className="my-4" />
-        <div className="text-center" style={mutedStyle}>
-          <small>&copy; 2024 LocalAds. All rights reserved.</small>
-        </div>
+        <hr className="border-secondary my-4" />
+
+        <Row className="align-items-center">
+
+          <Col md={6} className="text-center text-md-start">
+            <small className="text-secondary">
+              © 2026 LocalAds. All rights reserved.
+            </small>
+          </Col>
+
+          <Col md={6} className="text-center text-md-end mt-3 mt-md-0">
+
+            <a href="#privacy" className="text-secondary text-decoration-none me-3">Privacy</a>
+
+            <a href="#terms" className="text-secondary text-decoration-none me-3">Terms</a>
+
+            <a href="#cookies" className="text-secondary text-decoration-none"> Cookies</a>
+
+          </Col>
+
+        </Row>
+
       </Container>
     </footer>
   );

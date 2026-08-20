@@ -28,4 +28,4 @@ VIEW `vw_ads` AS
         JOIN `state` `s` ON ((`a`.`stateid` = `s`.`id`)))
     WHERE
         (`a`.`isactive` = 1)
-    limit 1
+    LIMIT 1;

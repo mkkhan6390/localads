@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Row, Col, Card, Dropdown, Alert } from "react-bootstrap";
+import { Row, Col, Card, Dropdown } from "react-bootstrap";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line
@@ -11,14 +11,42 @@ const normalizeMetricData = (source = []) => {
   if (!source) return [];
 
   if (Array.isArray(source)) {
-    return source
-      .filter(Boolean)
-      .map((entry) => ({
-        name: entry.name || entry.label || "Unknown",
-        views: Number(entry.views || 0),
-        clicks: Number(entry.clicks || 0)
-      }))
-      .filter((entry) => (entry.views || entry.clicks) > 0);
+    const grouped = [];
+
+    source.forEach((entry) => {
+      const name =
+        entry?.name ||
+        entry?.label ||
+        entry?.region ||
+        entry?.pincode ||
+        String(entry);
+
+      const existingEntry = grouped.find((e) => e.name === name);
+
+      if (existingEntry) {
+        // Every occurrence = 1 view
+        existingEntry.views += 1;
+
+        // Keep/sum clicks if available
+        existingEntry.clicks += Number(entry?.clicks) || 0;
+      } else {
+        grouped.push({
+          name,
+          views: 1,
+          clicks: Number(entry?.clicks) || 0,
+        });
+      }
+    });
+
+    return grouped;
+  }
+
+  if (typeof source === "object") {
+    return Object.entries(source).map(([key, stats]) => ({
+      name: key,
+      views: Number(stats?.views) || 0,
+      clicks: Number(stats?.clicks) || 0,
+    }));
   }
 
   return Object.entries(source)
@@ -27,7 +55,7 @@ const normalizeMetricData = (source = []) => {
       views: Number(stats?.views || 0),
       clicks: Number(stats?.clicks || 0)
     }))
-    .filter((entry) => (entry.views || entry.clicks) > 0);
+  // .filter((entry) => (entry.views || entry.clicks) > 0);
 };
 
 const normalizeDayTrendData = (dateMap = {}) => {
@@ -60,6 +88,7 @@ const normalizeDayTrendData = (dateMap = {}) => {
 
 const Statistics = ({ adsData = [] }) => {
   const [selectedAd, setSelectedAd] = useState(null);
+  const [locationFilter, setLocationFilter] = useState("pincode");
 
   useEffect(() => {
     if (!adsData || adsData.length === 0) {
@@ -87,8 +116,18 @@ const Statistics = ({ adsData = [] }) => {
   const appData = normalizeMetricData(selectedAd.apps);
 
   // ✅ Day trend
-  console.log("Selected Ad Datetimes:", selectedAd);
   const dayTrendData = normalizeDayTrendData(selectedAd.datetimes);
+  const viewsByLocationData = (selectedAd.viewsByLocation?.[locationFilter] || []).map((entry) => ({
+    ...entry,
+    name: locationFilter === "pincode" ? entry.pincode : entry.name
+  }));
+  const locationLabels = {
+    pincode: "Pincode",
+    city: "City",
+    district: "District",
+    state: "State",
+    country: "Country"
+  };
 
   return (
     <div>
@@ -166,12 +205,72 @@ const Statistics = ({ adsData = [] }) => {
         </Col>
       </Row>
 
+      {/* 📊 Views by Region */}
+      <Row className="mb-5">
+        <Col md={6}>
+          <Card className="shadow-sm p-3">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h5 className="mb-0">Views by Region</h5>
+              <Dropdown>
+                <Dropdown.Toggle variant="outline-primary" size="sm">
+                  By {locationLabels[locationFilter]}
+                </Dropdown.Toggle>
+                <Dropdown.Menu>
+                  {Object.entries(locationLabels).map(([value, label]) => (
+                    <Dropdown.Item
+                      key={value}
+                      active={locationFilter === value}
+                      onClick={() => setLocationFilter(value)}
+                    >
+                      By {label}
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Menu>
+              </Dropdown>
+            </div>
+
+            {viewsByLocationData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={350}>
+                <PieChart>
+                  <Pie
+                    data={viewsByLocationData}
+                    dataKey="views"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={120}
+                    label
+                  >
+                    {viewsByLocationData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${entry.name}-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div
+                className="d-flex align-items-center justify-content-center text-muted"
+                style={{ height: 350 }}
+              >
+                No {locationLabels[locationFilter].toLowerCase()} view data available
+              </div>
+            )}
+          </Card>
+        </Col>
+      </Row>
+
       {/* 🥧 Regions & Apps Distribution */}
       <Row className="mb-5">
         <Col md={6}>
           <Card className="shadow-sm p-3">
             <h5 className="mb-3">Region Distribution (Views)</h5>
-            {regionData.length > 0 ? (
+            {regionData.length > 0 && regionData.some(item => item.views > 0) ? (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie data={regionData} dataKey="views" nameKey="name" outerRadius={120} label>
