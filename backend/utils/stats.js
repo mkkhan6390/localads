@@ -12,16 +12,9 @@ async function getAdDashboard(adid, startDate, endDate) {
 
   // Get views by pincode
   const viewsByPincode = await db.collection("views").aggregate([
-    {
-      $match: {adid: String(adid)}
-    },
-    {
-      $group: {_id: "$pincode", views: { $sum: 1 }
-      }
-    },
-    {
-      $sort: {views: -1}
-    }
+    {$match: {adid: String(adid)}},
+    {$group: {_id: "$pincode", views: { $sum: 1 }}},
+    {$sort: {views: -1}}
   ]).toArray();
 
   // Convert MongoDB result to frontend-friendly format

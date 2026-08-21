@@ -67,12 +67,26 @@ const { MongoClient } = require("mongodb");
     // ---------- PART 2: uniques (by IP) ----------
     const uniquePipeline = [
       {
+        $set: {
+          clientIp: {
+            $trim: {
+              input: {
+                $arrayElemAt: [
+                  { $split: [{ $toString: { $ifNull: ["$ip", ""] } }, ","] },
+                  0
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
         $group: {
           _id: {
             adid: "$adid",
             year: { $year: "$timestamp" },
             month: { $month: "$timestamp" },
-            ip: "$ip"
+            ip: "$clientIp"
           }
         }
       },

@@ -5,13 +5,21 @@ const {authenticateuser} = require('../utils/authentication')
 const db = require('../utils/data')
 const { geocodePincode } = require('../utils/geocoder')
 
-const groupViewsByLocation = (views, locationKey) => {
-  return Object.values(views.reduce((grouped, view) => {
-    const name = view[locationKey] || `Unknown (${view.pincode})`;
-    grouped[name] ??= { name, views: 0 };
-    grouped[name].views += view.views;
+const groupEventsByLocation = (events, locationKey, countKey, uniqueKey) => {
+  return Object.values(events.reduce((grouped, event) => {
+    const name = event[locationKey] || `Unknown (${event.pincode})`;
+    grouped[name] ??= { name, [countKey]: 0, uniqueIps: new Set(), [uniqueKey]: 0 };
+    grouped[name][countKey] += Number(event[countKey]) || 0;
+    if (Array.isArray(event.uniqueIps)) {
+      event.uniqueIps.forEach((ip) => grouped[name].uniqueIps.add(ip));
+    } else {
+      grouped[name][uniqueKey] += Number(event[uniqueKey]) || 0;
+    }
     return grouped;
-  }, {}));
+  }, {})).map(({ uniqueIps, uniqueViews, ...location }) => ({
+    ...location,
+    [uniqueKey]: uniqueIps.size || location[uniqueKey]
+  }));
 };
 
 router.get("/", authenticateuser, async (req, res) => {
@@ -77,7 +85,8 @@ router.post("/stats/:userid", async (req, res) => {
 
     const statsAdids = await statsCollection.distinct("adid");
     const viewAdids = await mongo.collection("views").distinct("adid");
-    const adidStrings = [...new Set([...statsAdids, ...viewAdids].map(String))];
+    const clickAdids = await mongo.collection("clicks").distinct("adid");
+    const adidStrings = [...new Set([...statsAdids, ...viewAdids, ...clickAdids].map(String))];
 
     if (adidStrings.length === 0) {
       return res.json([]);
@@ -92,16 +101,71 @@ router.post("/stats/:userid", async (req, res) => {
     const pincodeViews = await mongo.collection("views").aggregate([
       { $match: { $expr: { $in: [{ $toString: "$adid" }, adidStrings] } } },
       {
-        $group: {
-          _id: { adid: { $toString: "$adid" }, pincode: { $toString: "$pincode" } },
-          views: { $sum: 1 }
+        $set: {
+          clientIp: {
+            $trim: {
+              input: {
+                $arrayElemAt: [
+                  { $split: [{ $toString: { $ifNull: ["$ip", ""] } }, ","] },
+                  0
+                ]
+              }
+            }
+          }
         }
       },
+      {
+        $group: {
+          _id: {
+            adid: { $toString: "$adid" },
+            pincode: { $toString: "$pincode" },
+            year: { $year: "$timestamp" },
+            month: { $month: "$timestamp" }
+          },
+          views: { $sum: 1 },
+          uniqueIps: { $addToSet: "$clientIp" }
+        }
+      },
+      { $project: { _id: 1, views: 1, uniqueIps: 1 } },
       { $sort: { views: -1 } }
     ]).toArray();
 
+    const pincodeClicks = await mongo.collection("clicks").aggregate([
+      { $match: { $expr: { $in: [{ $toString: "$adid" }, adidStrings] } } },
+      {
+        $set: {
+          clientIp: {
+            $trim: {
+              input: {
+                $arrayElemAt: [
+                  { $split: [{ $toString: { $ifNull: ["$ip", ""] } }, ","] },
+                  0
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            adid: { $toString: "$adid" },
+            pincode: { $toString: "$pincode" },
+            year: { $year: "$timestamp" },
+            month: { $month: "$timestamp" }
+          },
+          clicks: { $sum: 1 },
+          uniqueIps: { $addToSet: "$clientIp" }
+        }
+      },
+      { $sort: { clicks: -1 } }
+    ]).toArray();
+
     const locationByPincode = {};
-    const pincodes = [...new Set(pincodeViews.map(({ _id }) => _id.pincode))];
+    const pincodes = [...new Set([
+      ...pincodeViews.map(({ _id }) => _id.pincode),
+      ...pincodeClicks.map(({ _id }) => _id.pincode)
+    ])];
     const cachedLocations = await mongo.collection("pincode_locations")
       .find({ _id: { $in: pincodes } })
       .toArray();
@@ -126,34 +190,155 @@ router.post("/stats/:userid", async (req, res) => {
       }
     }
 
-    const viewsByAd = pincodeViews.reduce((grouped, item) => {
+    const viewsByAdPeriod = pincodeViews.reduce((grouped, item) => {
       const adid = String(item._id.adid);
+      const periodKey = `${adid}:${item._id.year}:${item._id.month}`;
       const location = locationByPincode[item._id.pincode] || { pincode: item._id.pincode };
       const view = {
         ...location,
         pincode: item._id.pincode,
-        views: Number(item.views)
+        views: Number(item.views),
+        uniqueViews: item.uniqueIps.length,
+        unique_views: item.uniqueIps.length,
+        uniqueIps: item.uniqueIps
       };
-      grouped[adid] ??= [];
-      grouped[adid].push(view);
+      grouped[periodKey] ??= [];
+      grouped[periodKey].push(view);
       return grouped;
     }, {});
+
+    const exclusiveViewsByAdPeriod = Object.fromEntries(
+      Object.entries(viewsByAdPeriod).map(([periodKey, views]) => {
+        const seenIps = new Set();
+        const exclusiveViews = [...views]
+          .sort((left, right) => right.views - left.views)
+          .map((view) => {
+            const uniqueIps = view.uniqueIps.filter((ip) => !seenIps.has(ip));
+            uniqueIps.forEach((ip) => seenIps.add(ip));
+            return {
+              ...view,
+              uniqueIps,
+              uniqueViews: uniqueIps.length,
+              unique_views: uniqueIps.length
+            };
+          });
+
+        return [periodKey, exclusiveViews];
+      })
+    );
+
+    const pincodeViewsByAdPeriod = Object.fromEntries(
+      Object.entries(exclusiveViewsByAdPeriod).map(([periodKey, views]) => [
+        periodKey,
+        views.map(({ uniqueIps, ...view }) => view)
+      ])
+    );
+
+    const viewTotalsByPeriod = Object.fromEntries(
+      Object.entries(exclusiveViewsByAdPeriod).map(([periodKey, views]) => {
+        const uniqueIps = new Set();
+        const totalViews = views.reduce((total, view) => {
+          view.uniqueIps.forEach((ip) => uniqueIps.add(ip));
+          return total + view.views;
+        }, 0);
+
+        return [periodKey, {
+          total_views: totalViews,
+          unique_views: uniqueIps.size
+        }];
+      })
+    );
+
+    const allTimeViewsByAd = pincodeViews.reduce((grouped, item) => {
+      const adid = String(item._id.adid);
+      grouped[adid] ??= { total_views: 0, uniqueIps: new Set() };
+      grouped[adid].total_views += Number(item.views) || 0;
+      item.uniqueIps.forEach((ip) => grouped[adid].uniqueIps.add(ip));
+      return grouped;
+    }, {});
+
+    const clicksByAdPeriod = pincodeClicks.reduce((grouped, item) => {
+      const adid = String(item._id.adid);
+      const periodKey = `${adid}:${item._id.year}:${item._id.month}`;
+      const location = locationByPincode[item._id.pincode] || { pincode: item._id.pincode };
+      const click = {
+        ...location,
+        pincode: item._id.pincode,
+        clicks: Number(item.clicks),
+        uniqueClicks: item.uniqueIps.length,
+        unique_clicks: item.uniqueIps.length,
+        uniqueIps: item.uniqueIps
+      };
+      grouped[periodKey] ??= [];
+      grouped[periodKey].push(click);
+      return grouped;
+    }, {});
+
+    const exclusiveClicksByAdPeriod = Object.fromEntries(
+      Object.entries(clicksByAdPeriod).map(([periodKey, clicks]) => {
+        const seenIps = new Set();
+        const exclusiveClicks = [...clicks]
+          .sort((left, right) => right.clicks - left.clicks)
+          .map((click) => {
+            const uniqueIps = click.uniqueIps.filter((ip) => !seenIps.has(ip));
+            uniqueIps.forEach((ip) => seenIps.add(ip));
+            return {
+              ...click,
+              uniqueIps,
+              uniqueClicks: uniqueIps.length,
+              unique_clicks: uniqueIps.length
+            };
+          });
+
+        return [periodKey, exclusiveClicks];
+      })
+    );
+
+    const clicksByAdPeriodForResponse = Object.fromEntries(
+      Object.entries(exclusiveClicksByAdPeriod).map(([periodKey, clicks]) => [
+        periodKey,
+        clicks.map(({ uniqueIps, ...click }) => click)
+      ])
+    );
 
     const statsDocuments = docs.length > 0
       ? docs
       : adidStrings.map((adid) => ({ adid }));
 
-    const statsWithPincodeViews = statsDocuments.map(doc => ({
-      ...doc,
-      viewsByPincode: viewsByAd[String(doc.adid)] || [],
-      viewsByLocation: {
-        pincode: viewsByAd[String(doc.adid)] || [],
-        city: groupViewsByLocation(viewsByAd[String(doc.adid)] || [], "city"),
-        district: groupViewsByLocation(viewsByAd[String(doc.adid)] || [], "district"),
-        state: groupViewsByLocation(viewsByAd[String(doc.adid)] || [], "state"),
-        country: groupViewsByLocation(viewsByAd[String(doc.adid)] || [], "country")
-      }
-    }));
+    const statsWithPincodeViews = statsDocuments.map(doc => {
+      const periodKey = `${String(doc.adid)}:${doc.year}:${doc.month}`;
+      const periodViews = exclusiveViewsByAdPeriod[periodKey] || [];
+      const pincodeViews = pincodeViewsByAdPeriod[periodKey] || [];
+      const periodClicks = exclusiveClicksByAdPeriod[periodKey] || [];
+      const clicksByLocation = clicksByAdPeriodForResponse[periodKey] || [];
+      const periodTotals = viewTotalsByPeriod[periodKey];
+      const allTimeTotals = allTimeViewsByAd[String(doc.adid)];
+      const viewTotals = periodTotals || {
+        total_views: allTimeTotals?.total_views || 0,
+        unique_views: allTimeTotals?.uniqueIps.size || 0
+      };
+
+      return {
+        ...doc,
+        total_views: viewTotals.total_views,
+        unique_views: viewTotals.unique_views,
+        viewsByPincode: pincodeViews,
+        viewsByLocation: {
+          pincode: pincodeViews,
+          city: groupEventsByLocation(periodViews, "city", "views", "uniqueViews"),
+          district: groupEventsByLocation(periodViews, "district", "views", "uniqueViews"),
+          state: groupEventsByLocation(periodViews, "state", "views", "uniqueViews"),
+          country: groupEventsByLocation(periodViews, "country", "views", "uniqueViews")
+        },
+        clicksByLocation: {
+          pincode: clicksByLocation,
+          city: groupEventsByLocation(periodClicks, "city", "clicks", "uniqueClicks"),
+          district: groupEventsByLocation(periodClicks, "district", "clicks", "uniqueClicks"),
+          state: groupEventsByLocation(periodClicks, "state", "clicks", "uniqueClicks"),
+          country: groupEventsByLocation(periodClicks, "country", "clicks", "uniqueClicks")
+        }
+      };
+    });
 
     res.json(statsWithPincodeViews);
   } catch (err) {
@@ -172,26 +357,10 @@ router.get("/views-by-pincode/:adid", async (req, res) => {
     const viewsByPincode = await mongo
       .collection("views")
       .aggregate([
-        {
-          $match: {
-            $expr: { $eq: [{ $toString: "$adid" }, adid] }
-          }
-        },
-        {
-          $group: {
-            _id: "$pincode",
-            views: {
-              $sum: 1
-            }
-          }
-        },
-        {
-          $sort: {
-            views: -1
-          }
-        }
-      ])
-      .toArray();
+        {$match: {$expr: { $eq: [{ $toString: "$adid" }, adid] }}},
+        {$group: {_id: "$pincode", views: {$sum: 1}}},
+        {$sort: { views: -1 }}
+      ]).toArray();
 
     const result = viewsByPincode.map(item => ({
       pincode: item._id,

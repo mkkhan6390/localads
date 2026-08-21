@@ -6,6 +6,12 @@ const {getpincodedetails, getAdsByRegion, isValidLandingPageUrl} = require('../u
 const {reverseGeocode, pincodeToLocation} = require('../utils/geocoder')
 require('dotenv').config()
 
+const getClientIp = (req) => {
+	const forwardedFor = req.headers['x-forwarded-for'];
+	const forwardedIp = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor?.split(',')[0];
+	return (forwardedIp || req.socket.remoteAddress || '').trim();
+};
+
 // MIDDLEWARE: if no pincode was submitted but latitude/longitude were,
 // reverse-geocode the coordinates to fill in req.body.pincode automatically.
 const resolvePincodeFromCoordinates = async (req, res, next) => {
@@ -282,7 +288,7 @@ router.post("/getad", authenticateapikey, getAdsByRegion, async (req, res) => {
   const appid = req.body.appid
   const adid = ad.id;  
  
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+	const ip = getClientIp(req);
   const timestamp = new Date();
 
   const event = { 
@@ -341,7 +347,7 @@ router.post("/click", async (req, res) => {
   //consider adding appid, pincode, etc in site cache if possible
   const data = req.body
   const adid = data.id + '';
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+	const ip = getClientIp(req);
   const appid = data.appid;//
   const pincode = data.pincode//
   const timestamp = new Date();// 

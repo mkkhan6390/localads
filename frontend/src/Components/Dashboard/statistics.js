@@ -89,6 +89,9 @@ const normalizeDayTrendData = (dateMap = {}) => {
 const Statistics = ({ adsData = [] }) => {
   const [selectedAd, setSelectedAd] = useState(null);
   const [locationFilter, setLocationFilter] = useState("pincode");
+  const [locationMetric, setLocationMetric] = useState("views");
+  const [clickLocationFilter, setClickLocationFilter] = useState("pincode");
+  const [clickLocationMetric, setClickLocationMetric] = useState("clicks");
 
   useEffect(() => {
     if (!adsData || adsData.length === 0) {
@@ -119,7 +122,13 @@ const Statistics = ({ adsData = [] }) => {
   const dayTrendData = normalizeDayTrendData(selectedAd.datetimes);
   const viewsByLocationData = (selectedAd.viewsByLocation?.[locationFilter] || []).map((entry) => ({
     ...entry,
-    name: locationFilter === "pincode" ? entry.pincode : entry.name
+    name: locationFilter === "pincode" ? entry.pincode : entry.name,
+    uniqueViews: Number(entry.uniqueViews ?? entry.unique_views) || 0
+  }));
+  const clicksByLocationData = (selectedAd.clicksByLocation?.[clickLocationFilter] || []).map((entry) => ({
+    ...entry,
+    name: clickLocationFilter === "pincode" ? entry.pincode : entry.name,
+    uniqueClicks: Number(entry.uniqueClicks ?? entry.unique_clicks) || 0
   }));
   const locationLabels = {
     pincode: "Pincode",
@@ -127,6 +136,14 @@ const Statistics = ({ adsData = [] }) => {
     district: "District",
     state: "State",
     country: "Country"
+  };
+  const metricLabels = {
+    views: "Views",
+    uniqueViews: "Unique Views"
+  };
+  const clickMetricLabels = {
+    clicks: "Clicks",
+    uniqueClicks: "Unique Clicks"
   };
 
   return (
@@ -210,23 +227,41 @@ const Statistics = ({ adsData = [] }) => {
         <Col md={6}>
           <Card className="shadow-sm p-3">
             <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="mb-0">Views by Region</h5>
-              <Dropdown>
-                <Dropdown.Toggle variant="outline-primary" size="sm">
-                  By {locationLabels[locationFilter]}
-                </Dropdown.Toggle>
-                <Dropdown.Menu>
-                  {Object.entries(locationLabels).map(([value, label]) => (
-                    <Dropdown.Item
-                      key={value}
-                      active={locationFilter === value}
-                      onClick={() => setLocationFilter(value)}
-                    >
-                      By {label}
-                    </Dropdown.Item>
-                  ))}
-                </Dropdown.Menu>
-              </Dropdown>
+              <h5 className="mb-0">{metricLabels[locationMetric]} by Region</h5>
+              <div className="d-flex gap-2">
+                <Dropdown>
+                  <Dropdown.Toggle variant="outline-primary" size="sm">
+                    By {locationLabels[locationFilter]}
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    {Object.entries(locationLabels).map(([value, label]) => (
+                      <Dropdown.Item
+                        key={value}
+                        active={locationFilter === value}
+                        onClick={() => setLocationFilter(value)}
+                      >
+                        By {label}
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown>
+                <Dropdown>
+                  <Dropdown.Toggle variant="outline-primary" size="sm">
+                    {metricLabels[locationMetric]}
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    {Object.entries(metricLabels).map(([value, label]) => (
+                      <Dropdown.Item
+                        key={value}
+                        active={locationMetric === value}
+                        onClick={() => setLocationMetric(value)}
+                      >
+                        {label}
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown>
+              </div>
             </div>
 
             {viewsByLocationData.length > 0 ? (
@@ -234,7 +269,7 @@ const Statistics = ({ adsData = [] }) => {
                 <PieChart>
                   <Pie
                     data={viewsByLocationData}
-                    dataKey="views"
+                    dataKey={locationMetric}
                     nameKey="name"
                     cx="50%"
                     cy="50%"
@@ -259,6 +294,81 @@ const Statistics = ({ adsData = [] }) => {
                 style={{ height: 350 }}
               >
                 No {locationLabels[locationFilter].toLowerCase()} view data available
+              </div>
+            )}
+          </Card>
+        </Col>
+        <Col md={6}>
+          <Card className="shadow-sm p-3">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h5 className="mb-0">
+                {clickMetricLabels[clickLocationMetric] === "Clicks" ? "Clicks" : "Unique Clicks"} by Region
+              </h5>
+              <div className="d-flex gap-2">
+                <Dropdown>
+                  <Dropdown.Toggle variant="outline-primary" size="sm">
+                    By {locationLabels[clickLocationFilter]}
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    {Object.entries(locationLabels).map(([value, label]) => (
+                      <Dropdown.Item
+                        key={value}
+                        active={clickLocationFilter === value}
+                        onClick={() => setClickLocationFilter(value)}
+                      >
+                        By {label}
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown>
+                <Dropdown>
+                  <Dropdown.Toggle variant="outline-primary" size="sm">
+                    {clickMetricLabels[clickLocationMetric]}
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    {Object.entries(clickMetricLabels).map(([value, label]) => (
+                      <Dropdown.Item
+                        key={value}
+                        active={clickLocationMetric === value}
+                        onClick={() => setClickLocationMetric(value)}
+                      >
+                        {label}
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown>
+              </div>
+            </div>
+
+            {clicksByLocationData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={350}>
+                <PieChart>
+                  <Pie
+                    data={clicksByLocationData}
+                    dataKey={clickLocationMetric}
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={120}
+                    label
+                  >
+                    {clicksByLocationData.map((entry, index) => (
+                      <Cell
+                        key={`click-cell-${entry.name}-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div
+                className="d-flex align-items-center justify-content-center text-muted"
+                style={{ height: 350 }}
+              >
+                No {locationLabels[clickLocationFilter].toLowerCase()} click data available
               </div>
             )}
           </Card>
