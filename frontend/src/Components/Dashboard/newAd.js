@@ -12,7 +12,7 @@ import {
 } from 'react-bootstrap';
 import { 
   BsUpload, BsCheck2Circle, BsImage, BsTag, BsLayers, 
-  BsPencilSquare, BsCardText, BsGeoAlt 
+  BsPencilSquare, BsCardText, BsGeoAlt, BsCheck 
 } from 'react-icons/bs';
 
 // Allowed creative formats: [width, height, label]
@@ -63,6 +63,7 @@ function NewAdModal(props) {
   const [errorMessage, setErrorMessage] = useState('');
   const [locating, setLocating] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1); // Multi-step wizard state tracker
   const fileInputRef = useRef(null);
 
   // Safely extract the ad ID whether props.selectedAd is an object or primitive ID
@@ -80,6 +81,7 @@ function NewAdModal(props) {
       setErrorMessage('');
       setErrors({});
       setExistingImageUrl('');
+      setCurrentStep(1);
 
       if (isEditMode) {
         // Edit mode: fetch existing ad data and populate the form
@@ -91,7 +93,6 @@ function NewAdModal(props) {
               headers: { authorization: `Bearer ${token}` },
             });
             const ad = response.data;
-            console.log("Fetched ad data for editing:", ad);
             setFormValues({
               file: null,
               userid: ad.owner_id || '',
@@ -161,31 +162,6 @@ function NewAdModal(props) {
     }
   };
 
-  const setFile = (file) => {
-    if (!file) return;
-    setFormValues((prev) => ({ ...prev, file }));
-    setExistingImageUrl('');
-    if (errors.file) setErrors((prev) => ({ ...prev, file: '' }));
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setDragActive(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setDragActive(false);
-  };
-
   const useMyLocation = () => {
     if (!navigator.geolocation) {
       setErrorMessage('Geolocation is not supported by your browser');
@@ -229,7 +205,7 @@ function NewAdModal(props) {
   };
 
   const handleSubmit = async (event) => {
-    event.preventDefault();
+    if (event) event.preventDefault();
     setSuccess(false);
     setErrorMessage('');
     
@@ -260,7 +236,7 @@ function NewAdModal(props) {
       const specCheck = await checkImageSpecs(formValues.file);
       if (!specCheck.valid) {
         setErrorMessage(
-          `Image must be exactly one of: 1200×628 (16:9), 1080×1080 (1:1), or 1080×1920 (9:16) px. ` +
+          `Image dimensions are invalid. Required: 1200×628, 1080×1080, or 1080×1920 px. ` +
           `Your image is ${specCheck.width}×${specCheck.height}px.`
         );
         return;
@@ -318,23 +294,8 @@ function NewAdModal(props) {
         }, 1500);
       }
     } catch (error) {
-      console.error(isEditMode ? "Error updating ad:" : "Error creating ad:", error);
-      
-      if (error.response) {
-        const { status, data } = error.response;
-        if (status === 422) {
-          console.error("Validation error details (422):", data);
-          setErrorMessage(data.error || data.message || 'Validation failed. Please check your inputs.');
-        } else if (status === 401) {
-          setErrorMessage('Authentication failed. Please login again.');
-        } else {
-          setErrorMessage(data.error || data.message || (isEditMode ? 'Failed to update ad. Please try again.' : 'Failed to create ad. Please try again.'));
-        }
-      } else if (error.request) {
-        setErrorMessage('Network error. Please check your connection.');
-      } else {
-        setErrorMessage('An unexpected error occurred.');
-      }
+      console.error("Error submitting ad:", error);
+      setErrorMessage('Failed to save ad. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -350,48 +311,31 @@ function NewAdModal(props) {
       show={props.showNewAdModal} 
       onHide={() => props.setShowNewAdModal(false)}
       centered
-      size="lg"
+      size="xl"
       contentClassName="newad-modal-content"
     >
       {/* Scoped styles: 16px rounded corners + gradient button */}
       <style>{`
-        .newad-modal-content { border-radius: 16px; overflow: hidden; }
-        .gradient-btn {
-          background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-          border: none;
-        }
-        .gradient-btn:hover, .gradient-btn:focus {
-          background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
-        }
-        .dropzone {
-          border: 2px dashed #cbd5e1;
-          border-radius: 12px;
-          background: #f8fafc;
-          text-align: center;
-          padding: 24px 16px;
-          cursor: pointer;
-          transition: border-color .15s, background .15s;
-        }
-        .dropzone.active {
-          border-color: #6366f1;
-          background: #eef2ff;
-        }
+        .newad-modal-content { border-radius: 16px; overflow: hidden; background: #ffffff; }
+        .gradient-btn { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border: none; }
+        .gradient-btn:hover { background: linear-gradient(135deg, #4f46e5 100%, #4338ca 100%); }
+        .dropzone { border: 2px dashed #cbd5e1; border-radius: 12px; background: #f8fafc; text-align: center; padding: 20px; cursor: pointer; }
+        .dropzone.active { border-color: #6366f1; background: #eef2ff; }
+        .preview-pane { background: #f8fafc; border-left: 2px solid #f1f5f9; min-height: 480px; }
       `}</style>
       <Modal.Header closeButton>
         <Modal.Title>{isEditMode ? 'Edit Advertisement' : 'Create New Advertisement'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {success && (
-          <Alert variant="success" className="d-flex align-items-center">
-            <BsCheck2Circle className="me-2" /> Advertisement {isEditMode ? 'updated' : 'created'} successfully!
+          <Alert variant="success" className="m-3 d-flex align-items-center">
+            <BsCheck2Circle className="me-2" /> Advertisement {isEditMode ? 'updated' : 'created'} successfully![cite: 3]
           </Alert>
         )}
-        
-        {errorMessage && (
-          <Alert variant="danger">
-            {errorMessage}
-          </Alert>
-        )}
+        {errorMessage &&
+         <Alert variant="danger" className="m-3">
+          {errorMessage}
+          </Alert>}
 
         {/* Show spinner while loading ad data in edit mode */}
         {fetchingAd ? (
@@ -400,245 +344,179 @@ function NewAdModal(props) {
             <span>Loading ad details...</span>
           </div>
         ) : (
-        
-        <Form onSubmit={handleSubmit}>
-          <Container>
-
-            {/* Current Ad Image Preview (edit mode) */}
-            {imagePreviewUrl && (
-              <Row className="mb-3">
-                <Col md={12}>
-                  <Form.Label className="d-flex align-items-center">
-                    <BsImage className="me-2" />
-                    {formValues.file ? 'New Image Preview' : 'Current Ad Image'}
-                  </Form.Label>
-                  <div 
-                    style={{ 
-                      border: '2px dashed #dee2e6', 
-                      borderRadius: 8, 
-                      padding: 8, 
-                      textAlign: 'center',
-                      backgroundColor: '#f8f9fa'
-                    }}
-                  >
-                    <img 
-                      src={imagePreviewUrl} 
-                      alt="Ad preview" 
-                      style={{ 
-                        maxWidth: '100%', 
-                        maxHeight: 200, 
-                        objectFit: 'contain',
-                        borderRadius: 4 
-                      }} 
-                    />
-                  </div>
-                  {isEditMode && !formValues.file && (
-                    <small className="text-muted">
-                      This is the current image. Upload a new file below to replace it.
-                    </small>
-                  )}
-                </Col>
-              </Row>
-            )}
-
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="d-flex align-items-center">
-                    <BsTag className="me-2" /> Ad Type
-                  </Form.Label>
-                  <Form.Select 
-                    name="type" 
-                    value={formValues.type} 
-                    onChange={handleChange}
-                    isInvalid={!!errors.type}
-                  >
-                    <option value="">Select Ad Type</option>
-                    <option value="image">Image</option>
-                    <option value="audio">Audio</option>
-                    <option value="video">Video</option>
-                  </Form.Select>
-                  <Form.Control.Feedback type="invalid">
-                    {errors.type}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
+          <Row className="g-0">
+            {/* LEFT SIDE: Wizard Form Fields */}
+            <Col lg={7} className="p-4">
               
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="d-flex align-items-center">
-                    <BsUpload className="me-2" />
-                    {isEditMode ? 'Replace Image (optional)' : 'Upload File'}
-                  </Form.Label>
-                  <div
-                    className={`dropzone${dragActive ? ' active' : ''}`}
-                    onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                  >
-                    <BsUpload size={20} className="mb-2 text-primary" />
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>
-                      Click to upload or drag &amp; drop file
+              {/* EXACT MATCH WIZARD TRACKER STYLING AS REQUESTED */}
+              <div className="d-flex align-items-center justify-content-center mb-4" style={{ gap: '24px' }}>
+                {/* Step 1 */}
+                <div className="d-flex flex-column align-items-center">
+                  <div style={{
+                    width: '28px', height: '28px', borderRadius: '50%',
+                    backgroundColor: currentStep > 1 ? '#10b981' : '#6366f1',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontSize: '11px', fontWeight: '700'
+                  }}>
+                    {currentStep > 1 ? <BsCheck size={16} /> : '1'}
+                  </div>
+                  <span style={{ fontSize: '10px', fontWeight: '600', color: currentStep >= 1 ? (currentStep > 1 ? '#10b981' : '#6366f1') : '#94a3b8', marginTop: '4px' }}>Media</span>
+                </div>
+
+                <div style={{ width: '80px', height: '2px', backgroundColor: currentStep > 1 ? '#10b981' : '#6366f1' }} />
+
+                {/* Step 2 */}
+                <div className="d-flex flex-column align-items-center">
+                  <div style={{
+                    width: '28px', height: '28px', borderRadius: '50%',
+                    backgroundColor: currentStep > 2 ? '#10b981' : (currentStep === 2 ? '#6366f1' : '#e2e8f0'),
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: currentStep >= 2 ? '#fff' : '#64748b', fontSize: '11px', fontWeight: '700'
+                  }}>
+                    {currentStep > 2 ? <BsCheck size={16} /> : '2'}
+                  </div>
+                  <span style={{ fontSize: '10px', fontWeight: '600', color: currentStep === 2 ? '#6366f1' : (currentStep > 2 ? '#10b981' : '#94a3b8'), marginTop: '4px' }}>Details</span>
+                </div>
+
+                <div style={{ width: '80px', height: '2px', backgroundColor: currentStep > 2 ? '#6366f1' : '#e2e8f0' }} />
+
+                {/* Step 3 */}
+                <div className="d-flex flex-column align-items-center">
+                  <div style={{
+                    width: '28px', height: '28px', borderRadius: '50%',
+                    backgroundColor: currentStep === 3 ? '#6366f1' : '#e2e8f0',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: currentStep === 3 ? '#fff' : '#64748b', fontSize: '11px', fontWeight: '700'
+                  }}>
+                    3
+                  </div>
+                  <span style={{ fontSize: '10px', fontWeight: currentStep === 3 ? '700' : '600', color: currentStep === 3 ? '#6366f1' : '#94a3b8', marginTop: '4px' }}>Publish</span>
+                </div>
+              </div>
+
+              <Form onSubmit={handleSubmit}>
+                {currentStep === 1 && (
+                  <div>
+                    <Form.Group className="mb-3">
+                      <Form.Label><BsTag className="me-2" />Ad Type</Form.Label>
+                      <Form.Select name="type" value={formValues.type} onChange={handleChange} isInvalid={!!errors.type}>
+                        <option value="">Select Ad Type</option>
+                        <option value="image">Image</option>
+                        <option value="audio">Audio</option>
+                        <option value="video">Video</option>
+                      </Form.Select>
+                      <Form.Control.Feedback type="invalid">{errors.type}</Form.Control.Feedback>
+                    </Form.Group>
+
+                    <Form.Group className="mb-3">
+                      <Form.Label><BsUpload className="me-2" />Upload File</Form.Label>
+                      <div className={`dropzone ${dragActive ? 'active' : ''}`} onClick={() => fileInputRef.current && fileInputRef.current.click()}>
+                        <BsUpload size={24} className="text-primary mb-2" />
+                        <div className="fw-semibold">Click to upload or drag &amp; drop file[cite: 3]</div>
+                        <small className="text-muted">PNG, JPG, or WEBP up to 5MB[cite: 3]</small>
+                        <Form.Control ref={fileInputRef} type="file" name="file" accept="image/jpeg,image/png,image/webp" onChange={handleChange} className="d-none" />
+                      </div>
+                      {formValues.file && <small className="text-muted mt-1 d-block">Selected: {formValues.file.name}</small>}
+                    </Form.Group>
+                  </div>
+                )}
+
+                {currentStep === 2 && (
+                  <div>
+                    <Form.Group className="mb-3">
+                      <Form.Label><BsPencilSquare className="me-2" />Title</Form.Label>
+                      <Form.Control type="text" name="title" value={formValues.title} onChange={handleChange} isInvalid={!!errors.title} placeholder="Enter a catchy title for your ad[cite: 3]" />
+                      <Form.Control.Feedback type="invalid">{errors.title}</Form.Control.Feedback>
+                    </Form.Group>
+
+                    <Form.Group className="mb-3">
+                      <Form.Label><BsCardText className="me-2" />Description</Form.Label>
+                      <Form.Control as="textarea" rows={3} name="description" value={formValues.description} onChange={handleChange} isInvalid={!!errors.description} placeholder="Describe your advertisement[cite: 3]" />
+                      <Form.Control.Feedback type="invalid">{errors.description}</Form.Control.Feedback>
+                    </Form.Group>
+
+                    <Row>
+                      <Col md={7}>
+                        <Form.Group className="mb-3">
+                          <Form.Label><BsGeoAlt className="me-2" />Pincode</Form.Label>
+                          <div className="input-group">
+                            <Form.Control type="text" name="pincode" value={formValues.pincode} onChange={handleChange} isInvalid={!!errors.pincode} placeholder="Enter 6-digit pincode" />
+                            <Button variant="outline-secondary" onClick={useMyLocation} disabled={locating} type="button">
+                              {locating ? <Spinner size="sm" animation="border" /> : 'Use My Location'}
+                            </Button>
+                          </div>
+                        </Form.Group>
+                      </Col>
+                      <Col md={5}>
+                        <Form.Group className="mb-3">
+                          <Form.Label><BsLayers className="me-2" />Display Level</Form.Label>
+                          <Form.Select name="displaylevel" value={formValues.displaylevel} onChange={handleChange} isInvalid={!!errors.displaylevel}>
+                            <option value="">Select Level</option>
+                            <option value="1">City</option>
+                            <option value="2">District</option>
+                            <option value="3">State</option>
+                            <option value="4">Country</option>
+                          </Form.Select>
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                  </div>
+                )}
+
+                {currentStep === 3 && (
+                  <div>
+                    <h6 className="fw-bold mb-3">Final Review &amp; Launch Options[cite: 3]</h6>
+                    <div className="p-3 mb-3 bg-light rounded border">
+                      <p className="mb-1 text-success fw-bold">✓ Media &amp; Information Ready[cite: 3]</p>
+                      <p className="mb-1"><strong>Title:</strong> {formValues.title || 'Untitled'}</p>
+                      <p className="mb-0"><strong>Target Pincode:</strong> {formValues.pincode || 'Not set'}</p>
                     </div>
-                    <small className="text-muted">PNG, JPG, or WEBP up to 5MB</small>
-                    <Form.Control
-                      ref={fileInputRef}
-                      type="file"
-                      name="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={handleChange}
-                      isInvalid={!!errors.file}
-                      className="d-none"
-                    />
                   </div>
-                  {errors.file && (
-                    <div className="invalid-feedback d-block">{errors.file}</div>
+                )}
+
+                {/* Wizard Controls Footer */}
+                <div className="d-flex justify-content-between mt-4 pt-3 border-top">
+                  {currentStep > 1 ? (
+                    <Button variant="secondary" onClick={() => setCurrentStep(currentStep - 1)}>Back</Button>
+                  ) : (
+                    <Button variant="secondary" onClick={() => props.setShowNewAdModal(false)}>Cancel</Button>
                   )}
-                  {formValues.file && (
-                    <small className="text-muted d-block mt-1">
-                      Selected: {formValues.file.name}
-                    </small>
-                  )}
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={12}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="d-flex align-items-center">
-                    <BsPencilSquare className="me-2" /> Title
-                  </Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="title"
-                    value={formValues.title}
-                    onChange={handleChange}
-                    isInvalid={!!errors.title}
-                    placeholder="Enter a catchy title for your ad"
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    {errors.title}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={12}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="d-flex align-items-center">
-                    <BsCardText className="me-2" /> Description
-                  </Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    name="description"
-                    value={formValues.description}
-                    onChange={handleChange}
-                    isInvalid={!!errors.description}
-                    placeholder="Describe your advertisement"
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    {errors.description}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="d-flex align-items-center">
-                    <BsGeoAlt className="me-2" /> Pincode
-                  </Form.Label>
-                  <div className="input-group">
-                    <Form.Control
-                      type="text"
-                      name="pincode"
-                      value={formValues.pincode}
-                      onChange={handleChange}
-                      isInvalid={!!errors.pincode}
-                      placeholder="Enter 6-digit pincode"
-                    />
-                    <Button
-                      variant="outline-secondary"
-                      onClick={useMyLocation}
-                      disabled={locating}
-                      type="button"
-                    >
-                      {locating ? (
-                        <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
-                      ) : (
-                        'Use My Location'
-                      )}
+
+                  {currentStep < 3 ? (
+                    <Button className="gradient-btn" onClick={() => setCurrentStep(currentStep + 1)}>Next Step →</Button>
+                  ) : (
+                    <Button className="gradient-btn" onClick={handleSubmit} disabled={loading}>
+                      {loading ? <Spinner size="sm" animation="border" /> : '🚀 Publish Ad'}[cite: 3]
                     </Button>
-                  </div>
-                  <Form.Control.Feedback type="invalid">
-                    {errors.pincode}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
+                  )}
+                </div>
+              </Form>
+            </Col>
+
+            {/* RIGHT SIDE: Split-Screen Live Preview Layout */}
+            <Col lg={5} className="preview-pane p-4 d-flex flex-column align-items-center justify-content-center">
+              <span className="text-muted fw-bold small mb-3" style={{ letterSpacing: '1.5px' }}>LIVE AD PREVIEW[cite: 3]</span>
               
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="d-flex align-items-center">
-                    <BsLayers className="me-2" /> Display Level
-                  </Form.Label>
-                  <Form.Select
-                    name="displaylevel"
-                    value={formValues.displaylevel}
-                    onChange={handleChange}
-                    isInvalid={!!errors.displaylevel}
-                  >
-                    <option value="">Select Display Level</option>
-                    <option value="1">City</option>
-                    <option value="2">District</option>
-                    <option value="3">State</option>
-                    <option value="4">Country</option>
-                  </Form.Select>
-                  <Form.Control.Feedback type="invalid">
-                    {errors.displaylevel}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-            </Row>
-          </Container>
-        </Form>
+              <div className="card shadow-sm border-0 p-3 w-100" style={{ maxWidth: '300px', borderRadius: '16px' }}>
+                <div className="bg-light rounded d-flex align-items-center justify-content-center mb-3" style={{ height: '160px', overflow: 'hidden' }}>
+                  {imagePreviewUrl ? (
+                    <img src={imagePreviewUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <span className="text-muted small">Image Preview Appears Here[cite: 3]</span>
+                  )}
+                </div>
+                <h6 className="fw-bold text-dark text-truncate">{formValues.title || 'Your Catchy Title'}[cite: 3]</h6>
+                <p className="text-muted small" style={{ fontSize: '11px', minHeight: '30px' }}>
+                  {formValues.description || 'Ad description text will populate here as you type to give you a live preview.'}[cite: 3]
+                </p>
+                <div className="d-flex gap-2 mt-2">
+                  <span className="badge bg-light text-primary border">📍 {formValues.pincode || 'No Pincode'}[cite: 3]</span>
+                </div>
+              </div>
+            </Col>
+          </Row>
         )}
       </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={() => props.setShowNewAdModal(false)}>
-          Cancel
-        </Button>
-        <Button 
-          className="gradient-btn"
-          onClick={handleSubmit} 
-          disabled={loading || success || fetchingAd}
-        >
-          {loading ? (
-            <>
-              <Spinner
-                as="span"
-                animation="border"
-                size="sm"
-                role="status"
-                aria-hidden="true"
-                className="me-2"
-              />
-              Processing...
-            </>
-          ) : success ? (
-            <>
-              <BsCheck2Circle className="me-2" />
-              {isEditMode ? 'Updated' : 'Created'}
-            </>
-          ) : (
-            isEditMode ? 'Update Advertisement' : 'Create Advertisement'
-          )}
-        </Button>
-      </Modal.Footer>
     </Modal>
   );
 }
