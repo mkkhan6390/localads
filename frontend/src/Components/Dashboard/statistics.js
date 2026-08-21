@@ -151,37 +151,84 @@ const Statistics = ({ adsData = [] }) => {
       {/* 📊 Views vs Clicks */}
       <Row className="mb-5">
         <Col>
-          <Card className="statistics-card p-3">
-            <h5 className="mb-3">Views vs Clicks</h5>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={[
-                { name: "Total", views: selectedAd.total_views, clicks: selectedAd.total_clicks },
-                { name: "Unique", views: selectedAd.unique_views, clicks: selectedAd.unique_clicks }
-              ]}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
+          <Card className="statistics-card shadow-sm border-0 p-4">
+
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <div>
+                <h5 className="fw-bold mb-1">Performance Overview</h5>
+                <p className="text-muted small mb-0">
+                  Compare total and unique views with clicks
+                </p>
+              </div>
+
+              <span className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-2">
+                Ad Analytics
+              </span>
+            </div>
+
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart
+                data={[
+                  { name: "Total", views: Number(selectedAd.total_views) || 0, clicks: Number(selectedAd.total_clicks) || 0 },
+                  { name: "Unique", views: Number(selectedAd.unique_views) || 0, clicks: Number(selectedAd.unique_clicks) || 0 },
+                ]}
+                barGap={10}
+                barCategoryGap="35%"
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                <YAxis axisLine={false} tickLine={false} />
                 <Tooltip />
-                <Legend />
-                <Bar dataKey="views" fill="#8884d8" />
-                <Bar dataKey="clicks" fill="#82ca9d" />
+                <Legend verticalAlign="top" align="right" iconType="circle" />
+                <Bar dataKey="views" name="Views" fill="#0d6efd" radius={[8, 8, 0, 0]} maxBarSize={70} />
+                <Bar dataKey="clicks" name="Clicks" fill="#20c997" radius={[8, 8, 0, 0]} maxBarSize={70} />
               </BarChart>
             </ResponsiveContainer>
+
           </Card>
         </Col>
       </Row>
 
-      {/* 📊 Views by Region */}
-      <Row className="mb-5">
-        <Col md={6}>
-          <Card className="statistics-card p-3">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="mb-0">{metricLabels[locationMetric]} by Region</h5>
-              <div className="d-flex gap-2">
+      {/* 📊 Views & Clicks by Region */}
+      <Row className="mb-5 g-4">
+
+        {/* 👁 Views by Region */}
+        <Col lg={6}>
+          <Card className="statistics-card border-0 shadow-sm h-100">
+            <Card.Body className="p-4">
+
+              {/* Header */}
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <div className="d-flex align-items-center gap-3">
+                  <div className="bg-primary bg-opacity-10 text-primary rounded-circle p-3">
+                    <i className="bi bi-eye-fill fs-4"></i>
+                  </div>
+
+                  <div>
+                    <h5 className="fw-bold mb-0">
+                      {metricLabels[locationMetric]} by Region
+                    </h5>
+
+                    <small className="text-muted">
+                      Audience distribution by location
+                    </small>
+                  </div>
+                </div>
+
+                <span className="badge rounded-pill text-bg-primary px-3 py-2">
+                  <i className="bi bi-geo-alt-fill me-1"></i>
+                  Analytics
+                </span>
+              </div>
+
+              {/* Filters */}
+              <div className="border rounded-3 bg-light p-2 d-flex gap-2 mb-3">
                 <Dropdown>
-                  <Dropdown.Toggle variant="outline-primary" size="sm">
-                    By {locationLabels[locationFilter]}
+                  <Dropdown.Toggle variant="light" size="sm" className="border-0 fw-semibold">
+                    <i className="bi bi-geo-alt text-primary me-2"></i>
+                    {locationLabels[locationFilter]}
                   </Dropdown.Toggle>
+
                   <Dropdown.Menu>
                     {Object.entries(locationLabels).map(([value, label]) => (
                       <Dropdown.Item
@@ -194,10 +241,13 @@ const Statistics = ({ adsData = [] }) => {
                     ))}
                   </Dropdown.Menu>
                 </Dropdown>
+
                 <Dropdown>
-                  <Dropdown.Toggle variant="outline-primary" size="sm">
+                  <Dropdown.Toggle variant="light" size="sm" className="border-0 fw-semibold">
+                    <i className="bi bi-bar-chart text-primary me-2"></i>
                     {metricLabels[locationMetric]}
                   </Dropdown.Toggle>
+
                   <Dropdown.Menu>
                     {Object.entries(metricLabels).map(([value, label]) => (
                       <Dropdown.Item
@@ -211,53 +261,102 @@ const Statistics = ({ adsData = [] }) => {
                   </Dropdown.Menu>
                 </Dropdown>
               </div>
-            </div>
 
-            {viewsByLocationData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={350}>
-                <PieChart>
-                  <Pie
-                    data={viewsByLocationData}
-                    dataKey={locationMetric}
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={120}
-                    label
-                  >
-                    {viewsByLocationData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${entry.name}-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
+              {/* Chart */}
+              {viewsByLocationData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={360}>
+                  <PieChart>
 
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div
-                className="d-flex align-items-center justify-content-center text-muted"
-                style={{ height: 350 }}
-              >
-                No {locationLabels[locationFilter].toLowerCase()} view data available
-              </div>
-            )}
+                    <Pie
+                      data={viewsByLocationData}
+                      dataKey={locationMetric}
+                      nameKey="name"
+                      cx="50%"
+                      cy="45%"
+                      innerRadius={85}
+                      outerRadius={130}
+                      paddingAngle={4}
+                      cornerRadius={10}
+                    >
+                      {viewsByLocationData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${entry.name}-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+
+                    {/* Center Total */}
+                    <text x="50%" y="40%" textAnchor="middle" className="text-muted">
+                      Total
+                    </text>
+
+                    <text x="50%" y="48%" textAnchor="middle" className="fw-bold">
+                      {viewsByLocationData
+                        .reduce((total, item) => total + (Number(item[locationMetric]) || 0), 0)
+                        .toLocaleString()}
+                    </text>
+
+                    <Tooltip />
+
+                    <Legend
+                      iconType="circle"
+                      verticalAlign="bottom"
+                    />
+
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="d-flex flex-column align-items-center justify-content-center text-muted" style={{ height: 360 }}>
+                  <i className="bi bi-geo-alt fs-1 mb-3"></i>
+                  <span>
+                    No {locationLabels[locationFilter].toLowerCase()} view data available
+                  </span>
+                </div>
+              )}
+
+            </Card.Body>
           </Card>
         </Col>
-        <Col md={6}>
-          <Card className="statistics-card p-3">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="mb-0">
-                {clickMetricLabels[clickLocationMetric] === "Clicks" ? "Clicks" : "Unique Clicks"} by Region
-              </h5>
-              <div className="d-flex gap-2">
+
+
+        {/* 🖱 Clicks by Region */}
+        <Col lg={6}>
+          <Card className="statistics-card border-0 shadow-sm h-100">
+            <Card.Body className="p-4">
+
+              {/* Header */}
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <div className="d-flex align-items-center gap-3">
+                  <div className="bg-success bg-opacity-10 text-success rounded-circle p-3">
+                    <i className="bi bi-cursor-fill fs-4"></i>
+                  </div>
+
+                  <div>
+                    <h5 className="fw-bold mb-0">
+                      {clickMetricLabels[clickLocationMetric]} by Region
+                    </h5>
+
+                    <small className="text-muted">
+                      Engagement distribution by location
+                    </small>
+                  </div>
+                </div>
+
+                <span className="badge rounded-pill text-bg-success px-3 py-2">
+                  <i className="bi bi-activity me-1"></i>
+                  Engagement
+                </span>
+              </div>
+
+              {/* Filters */}
+              <div className="border rounded-3 bg-light p-2 d-flex gap-2 mb-3">
                 <Dropdown>
-                  <Dropdown.Toggle variant="outline-primary" size="sm">
-                    By {locationLabels[clickLocationFilter]}
+                  <Dropdown.Toggle variant="light" size="sm" className="border-0 fw-semibold">
+                    <i className="bi bi-geo-alt text-success me-2"></i>
+                    {locationLabels[clickLocationFilter]}
                   </Dropdown.Toggle>
+
                   <Dropdown.Menu>
                     {Object.entries(locationLabels).map(([value, label]) => (
                       <Dropdown.Item
@@ -270,10 +369,13 @@ const Statistics = ({ adsData = [] }) => {
                     ))}
                   </Dropdown.Menu>
                 </Dropdown>
+
                 <Dropdown>
-                  <Dropdown.Toggle variant="outline-primary" size="sm">
+                  <Dropdown.Toggle variant="light" size="sm" className="border-0 fw-semibold">
+                    <i className="bi bi-bar-chart text-success me-2"></i>
                     {clickMetricLabels[clickLocationMetric]}
                   </Dropdown.Toggle>
+
                   <Dropdown.Menu>
                     {Object.entries(clickMetricLabels).map(([value, label]) => (
                       <Dropdown.Item
@@ -287,89 +389,185 @@ const Statistics = ({ adsData = [] }) => {
                   </Dropdown.Menu>
                 </Dropdown>
               </div>
-            </div>
 
-            {clicksByLocationData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={350}>
-                <PieChart>
-                  <Pie
-                    data={clicksByLocationData}
-                    dataKey={clickLocationMetric}
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={120}
-                    label
-                  >
-                    {clicksByLocationData.map((entry, index) => (
-                      <Cell
-                        key={`click-cell-${entry.name}-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div
-                className="d-flex align-items-center justify-content-center text-muted"
-                style={{ height: 350 }}
-              >
-                No {locationLabels[clickLocationFilter].toLowerCase()} click data available
-              </div>
-            )}
+              {/* Chart */}
+              {clicksByLocationData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={360}>
+                  <PieChart>
+
+                    <Pie
+                      data={clicksByLocationData}
+                      dataKey={clickLocationMetric}
+                      nameKey="name"
+                      cx="50%"
+                      cy="45%"
+                      innerRadius={85}
+                      outerRadius={130}
+                      paddingAngle={4}
+                      cornerRadius={10}
+                    >
+                      {clicksByLocationData.map((entry, index) => (
+                        <Cell
+                          key={`click-cell-${entry.name}-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+
+                    {/* Center Total */}
+                    <text x="50%" y="40%" textAnchor="middle" className="text-muted">
+                      Total
+                    </text>
+
+                    <text x="50%" y="48%" textAnchor="middle" className="fw-bold">
+                      {clicksByLocationData
+                        .reduce((total, item) => total + (Number(item[clickLocationMetric]) || 0), 0)
+                        .toLocaleString()}
+                    </text>
+
+                    <Tooltip />
+
+                    <Legend
+                      iconType="circle"
+                      verticalAlign="bottom"
+                    />
+
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="d-flex flex-column align-items-center justify-content-center text-muted" style={{ height: 360 }}>
+                  <i className="bi bi-geo-alt fs-1 mb-3"></i>
+                  <span>
+                    No {locationLabels[clickLocationFilter].toLowerCase()} click data available
+                  </span>
+                </div>
+              )}
+
+            </Card.Body>
           </Card>
         </Col>
+
       </Row>
 
-      {/* 📈 MongoDB event trend */}
-      <Row>
+      {/* 📈 Views & Clicks Trend */}
+      <Row className="mb-5">
         <Col>
-          <Card className="statistics-card p-3">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="mb-0">{trendPeriod[0].toUpperCase() + trendPeriod.slice(1)} Trend (Views & Clicks)</h5>
-              <Dropdown>
-                <Dropdown.Toggle variant="outline-primary" size="sm">
-                  {trendPeriod[0].toUpperCase() + trendPeriod.slice(1)}
-                </Dropdown.Toggle>
-                <Dropdown.Menu>
-                  {[
-                    ["daily", "Daily"],
-                    ["weekly", "Weekly"],
-                    ["monthly", "Monthly"],
-                    ["quarterly", "Quarterly"],
-                    ["yearly", "Yearly"]
-                  ].map(([value, label]) => (
-                    <Dropdown.Item
-                      key={value}
-                      active={trendPeriod === value}
-                      onClick={() => setTrendPeriod(value)}
-                    >
-                      {label}
-                    </Dropdown.Item>
-                  ))}
-                </Dropdown.Menu>
-              </Dropdown>
-            </div>
-            {chartTrendData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="label" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="views" stroke="#8884d8" />
-                  <Line type="monotone" dataKey="clicks" stroke="#82ca9d" />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 300 }}>
-                No {trendPeriod} trend data available
+          <Card className="statistics-card border-0 shadow-sm">
+            <Card.Body className="p-4">
+
+              {/* Header */}
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <div className="d-flex align-items-center gap-3">
+                  <div className="bg-info bg-opacity-10 text-info rounded-circle p-3">
+                    <i className="bi bi-graph-up-arrow fs-4"></i>
+                  </div>
+
+                  <div>
+                    <h5 className="fw-bold mb-0">
+                      {trendPeriod[0].toUpperCase() + trendPeriod.slice(1)} Trend
+                    </h5>
+
+                    <small className="text-muted">
+                      Track views and clicks performance over time
+                    </small>
+                  </div>
+                </div>
+
+                <span className="badge rounded-pill text-bg-info px-3 py-2">
+                  <i className="bi bi-activity me-1"></i>
+                  Performance
+                </span>
               </div>
-            )}
+
+              {/* Filter */}
+              <div className="border rounded-3 bg-light p-2 d-flex align-items-center gap-2 mb-4">
+                <i className="bi bi-calendar-range text-info ms-1"></i>
+
+                <Dropdown>
+                  <Dropdown.Toggle variant="light" size="sm" className="border-0 fw-semibold">
+                    {trendPeriod[0].toUpperCase() + trendPeriod.slice(1)}
+                  </Dropdown.Toggle>
+
+                  <Dropdown.Menu>
+                    {[
+                      ["daily", "Daily"],
+                      ["weekly", "Weekly"],
+                      ["monthly", "Monthly"],
+                      ["quarterly", "Quarterly"],
+                      ["yearly", "Yearly"]
+                    ].map(([value, label]) => (
+                      <Dropdown.Item
+                        key={value}
+                        active={trendPeriod === value}
+                        onClick={() => setTrendPeriod(value)}
+                      >
+                        {label}
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown>
+              </div>
+
+              {/* Chart */}
+              {chartTrendData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={360}>
+                  <LineChart
+                    data={chartTrendData}
+                    margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+
+                    <XAxis
+                      dataKey="label"
+                      axisLine={false}
+                      tickLine={false}
+                    />
+
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                    />
+
+                    <Tooltip />
+
+                    <Legend
+                      iconType="circle"
+                      verticalAlign="top"
+                      align="right"
+                    />
+
+                    <Line
+                      type="monotone"
+                      dataKey="views"
+                      name="Views"
+                      stroke="#0d6efd"
+                      strokeWidth={3}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 7 }}
+                    />
+
+                    <Line
+                      type="monotone"
+                      dataKey="clicks"
+                      name="Clicks"
+                      stroke="#20c997"
+                      strokeWidth={3}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 7 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="d-flex flex-column align-items-center justify-content-center text-muted" style={{ height: 360 }}>
+                  <i className="bi bi-graph-up fs-1 mb-3 opacity-50"></i>
+
+                  <span>
+                    No {trendPeriod} trend data available
+                  </span>
+                </div>
+              )}
+
+            </Card.Body>
           </Card>
         </Col>
       </Row>

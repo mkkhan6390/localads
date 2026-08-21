@@ -7,7 +7,7 @@ import ActivateAdModal from "./ActivateAd";
 import Statistics from "./statistics";
 import Profile from "./profile";
 import PublisherApps from "./publisherApps";
-import { BsPlusCircle, BsBoxArrowRight, BsPencil, BsEye, BsCursor, BsMegaphone, BsPerson, BsSearch, BsSortDown } from "react-icons/bs";
+import { BsPlusCircle, BsBoxArrowRight, BsPencil, BsEye, BsCursor, BsMegaphone, BsPerson, BsSearch, BsSortDown, BsChevronDown } from "react-icons/bs";
 
 const Dashboard = ({ user }) => {
   const [userData, setUserData] = useState(null);
@@ -242,12 +242,16 @@ const Dashboard = ({ user }) => {
         {/* 🔹 Navbar with Tabs */}
         <Navbar expand="lg" className="dashboard-navbar sticky-top">
           <Container fluid>
-            <Navbar.Brand className="d-flex align-items-center">
-              {/* <img src={logo} alt="Naav Logo" height={40} width={70} className="me-2" /> */}
-              <Link to='/' className="dashboard-brand">
-                <span className="d-none d-md-inline">Local Ads</span>
-              </Link>
+            {/* <img src={logo} alt="Naav Logo" height={40} width={70} className="me-2" /> */}
+            <Navbar.Brand
+              href="#home" className="d-flex align-items-center gap-2">
+              <span className="fs-2">
+                <span className="fw-light text-secondary">Local</span>
+                <span className="fw-bold text-primary">Ads</span>
+                <i className="bi bi-megaphone-fill text-primary fs-3"></i>
+              </span>
             </Navbar.Brand>
+
             <Navbar.Toggle aria-controls="main-navbar" />
             <Navbar.Collapse id="main-navbar">
               <Nav className="me-auto">
@@ -263,12 +267,6 @@ const Dashboard = ({ user }) => {
                 >
                   Statistics
                 </Nav.Link>}
-                <Nav.Link
-                  active={activeTab === "profile"}
-                  onClick={() => setActiveTab("profile")}
-                >
-                  Profile
-                </Nav.Link>
                 {usertype === 'DEVELOPER' && <Nav.Link
                   active={activeTab === "apps"}
                   onClick={() => setActiveTab("apps")}
@@ -277,7 +275,7 @@ const Dashboard = ({ user }) => {
                 </Nav.Link>}
               </Nav>
               <Nav className="ms-auto d-flex align-items-center">
-                {usertype === 'ADVERTISER' && activeTab === "ads" && (
+                {usertype === 'ADVERTISER' && (activeTab === "ads" || activeTab === "stats") && (
                   <Button
                     variant="primary"
                     size="sm"
@@ -287,17 +285,46 @@ const Dashboard = ({ user }) => {
                     <BsPlusCircle className="me-2" /> Create Ad
                   </Button>
                 )}
-                <span className="me-3 d-none d-md-block">Welcome, <strong>{userData?.username || "User"}</strong></span>
-                <OverlayTrigger
-                  trigger="click"
-                  placement="bottom-end"
-                  rootClose
-                  overlay={profilePopover}
-                >
-                  <Button variant="outline-secondary" size="sm" className="d-flex align-items-center">
-                    <BsPerson className="me-2" /> Account
-                  </Button>
-                </OverlayTrigger>
+                <div className="d-flex align-items-center">
+
+                  {/* Welcome section */}
+                  <div className="d-none d-md-block me-3 text-end">
+                    <div
+                      className="text-muted"
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: "500",
+                        letterSpacing: "0.4px",
+                        lineHeight: "1.2"
+                      }}
+                    > WELCOME </div>
+
+                    <div
+                      className="fw-semibold text-dark"
+                      style={{ fontSize: "15px", lineHeight: "1.4" }} >
+                      {userData?.username || "User"}
+                    </div>
+                  </div>
+
+                  {/* Separator */}
+                  <div
+                    className="vr me-3"
+                    style={{ height: "32px", opacity: 0.15 }} />
+
+                  {/* Account button */}
+                  <OverlayTrigger trigger="click" placement="bottom-end" rootClose
+                    overlay={profilePopover} >
+                    <Button
+                      variant="light"
+                      className="d-flex align-items-center justify-content-center rounded-circle p-0 border shadow-sm"
+                      style={{ width: "42px", height: "42px" }}
+                      aria-label="Account"
+                    >
+                      <BsPerson size={21} className="text-primary" />
+                    </Button>
+                  </OverlayTrigger>
+
+                </div>
               </Nav>
             </Navbar.Collapse>
           </Container>
