@@ -1,16 +1,7 @@
 import React, { useState, useEffect } from "react";
 import api from "../../api";
 import { Copy, CheckCircle, Plus } from "lucide-react";
-import {
-  Button,
-  Card,
-  Form,
-  Spinner,
-  Alert,
-  Modal,
-  Row,
-  Col,
-} from "react-bootstrap";
+import { Button, Card, Form, Spinner, Alert, Modal, Row, Col,} from "react-bootstrap";
 
 export default function PublisherApps() {
   const [apps, setApps] = useState([]);
@@ -110,27 +101,6 @@ export default function PublisherApps() {
       ) : (
         <Row xs={1} md={2} className="g-4">
           {apps.map((app) => {
-
-            //give the option to choose sdk type for vanilla js, react, vue, android, ios, etc
-            //for react.js
-            // useEffect(() => {
-            //     const script = document.createElement("script");
-            //     script.src = "http://localhost:5000/sdk";
-            //     script.async = true;
-  
-            //     // add custom attributes
-            //     script.setAttribute("username", "mkhan6390");
-            //     script.setAttribute("appid", "0c8e2b0e-84b9-11f0-bfe2-c85b7660b47d");
-            //     script.setAttribute("apikey", "$2a$10$pRDeD2axZz7Xj0oe3wbvROYsZAyUyk.b8lsY1XIpo8SnT8uOlcFqe");
-            //     script.setAttribute("adtype", "image");
-  
-            //     document.body.appendChild(script);
-  
-            //     return () => {
-            //       document.body.removeChild(script); // cleanup on unmount
-            //     };
-            // }, []);
-
             const embedScript = `
             <script async src="http://localhost:5000/sdk"
               username="${app.username}"

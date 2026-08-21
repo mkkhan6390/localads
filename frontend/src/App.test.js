@@ -27,6 +27,13 @@ const sampleAdsData = [{
   clicksByLocation: {
     pincode: [{ pincode: '101', clicks: 3, uniqueClicks: 2 }]
   },
+  trendData: {
+    daily: [{ period: '2025-08-01', label: 'Aug 1, 2025', views: 4, clicks: 2 }],
+    weekly: [{ period: 'Aug 1, 2025', label: 'Aug 1, 2025 - Aug 7, 2025', views: 8, clicks: 4 }],
+    monthly: [{ period: '2025-08', label: 'August 2025', views: 10, clicks: 5 }],
+    quarterly: [{ period: '2025-Q3', label: 'Q3 2025', views: 10, clicks: 5 }],
+    yearly: [{ period: '2025', label: '2025', views: 10, clicks: 5 }]
+  },
   datetimes: {
     2025: {
       8: {
@@ -57,4 +64,13 @@ test('shows clicks by region chart', () => {
   render(<Statistics adsData={sampleAdsData} />);
 
   expect(screen.getByRole('heading', { name: 'Clicks by Region' })).toBeInTheDocument();
+});
+
+test('switches the trend chart period', () => {
+  render(<Statistics adsData={sampleAdsData} />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Daily' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Monthly' }));
+
+  expect(screen.getByRole('heading', { name: 'Monthly Trend (Views & Clicks)' })).toBeInTheDocument();
 });

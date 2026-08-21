@@ -7,57 +7,6 @@ import {
 
 const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff7f50", "#0088FE", "#FFBB28", "#00C49F", "#FF8042"];
 
-const normalizeMetricData = (source = []) => {
-  if (!source) return [];
-
-  if (Array.isArray(source)) {
-    const grouped = [];
-
-    source.forEach((entry) => {
-      const name =
-        entry?.name ||
-        entry?.label ||
-        entry?.region ||
-        entry?.pincode ||
-        String(entry);
-
-      const existingEntry = grouped.find((e) => e.name === name);
-
-      if (existingEntry) {
-        // Every occurrence = 1 view
-        existingEntry.views += 1;
-
-        // Keep/sum clicks if available
-        existingEntry.clicks += Number(entry?.clicks) || 0;
-      } else {
-        grouped.push({
-          name,
-          views: 1,
-          clicks: Number(entry?.clicks) || 0,
-        });
-      }
-    });
-
-    return grouped;
-  }
-
-  if (typeof source === "object") {
-    return Object.entries(source).map(([key, stats]) => ({
-      name: key,
-      views: Number(stats?.views) || 0,
-      clicks: Number(stats?.clicks) || 0,
-    }));
-  }
-
-  return Object.entries(source)
-    .map(([key, stats]) => ({
-      name: key,
-      views: Number(stats?.views || 0),
-      clicks: Number(stats?.clicks || 0)
-    }))
-  // .filter((entry) => (entry.views || entry.clicks) > 0);
-};
-
 const normalizeDayTrendData = (dateMap = {}) => {
   const result = [];
 
@@ -92,6 +41,7 @@ const Statistics = ({ adsData = [] }) => {
   const [locationMetric, setLocationMetric] = useState("views");
   const [clickLocationFilter, setClickLocationFilter] = useState("pincode");
   const [clickLocationMetric, setClickLocationMetric] = useState("clicks");
+  const [trendPeriod, setTrendPeriod] = useState("daily");
 
   useEffect(() => {
     if (!adsData || adsData.length === 0) {
@@ -112,14 +62,13 @@ const Statistics = ({ adsData = [] }) => {
 
   if (!selectedAd) return <p>No statistics available</p>;
 
-  // ✅ Region data
-  const regionData = normalizeMetricData(selectedAd.regions);
-
-  // ✅ App data
-  const appData = normalizeMetricData(selectedAd.apps);
-
   // ✅ Day trend
-  const dayTrendData = normalizeDayTrendData(selectedAd.datetimes);
+  const fallbackTrendData = normalizeDayTrendData(selectedAd.datetimes);
+  const trendData = selectedAd.trendData?.[trendPeriod] || fallbackTrendData;
+  const chartTrendData = trendData.map((entry) => ({
+    ...entry,
+    label: entry.label || entry.period || entry.day || "Unknown"
+  }));
   const viewsByLocationData = (selectedAd.viewsByLocation?.[locationFilter] || []).map((entry) => ({
     ...entry,
     name: locationFilter === "pincode" ? entry.pincode : entry.name,
@@ -147,7 +96,7 @@ const Statistics = ({ adsData = [] }) => {
   };
 
   return (
-    <div>
+    <div className="statistics-page">
       {/* 🔽 Dropdown Selector */}
       <Row className="mb-4">
         <Col>
@@ -174,25 +123,25 @@ const Statistics = ({ adsData = [] }) => {
       {/* 📊 Summary Cards */}
       <Row className="mb-4">
         <Col md={3}>
-          <Card className="shadow-sm text-center p-3">
+          <Card className="metric-card text-center p-3">
             <h6>Total Views</h6>
             <h4>{selectedAd.total_views}</h4>
           </Card>
         </Col>
         <Col md={3}>
-          <Card className="shadow-sm text-center p-3">
+          <Card className="metric-card text-center p-3">
             <h6>Unique Views</h6>
             <h4>{selectedAd.unique_views}</h4>
           </Card>
         </Col>
         <Col md={3}>
-          <Card className="shadow-sm text-center p-3">
+          <Card className="metric-card text-center p-3">
             <h6>Total Clicks</h6>
             <h4>{selectedAd.total_clicks}</h4>
           </Card>
         </Col>
         <Col md={3}>
-          <Card className="shadow-sm text-center p-3">
+          <Card className="metric-card text-center p-3">
             <h6>Unique Clicks</h6>
             <h4>{selectedAd.unique_clicks}</h4>
           </Card>
@@ -202,7 +151,7 @@ const Statistics = ({ adsData = [] }) => {
       {/* 📊 Views vs Clicks */}
       <Row className="mb-5">
         <Col>
-          <Card className="shadow-sm p-3">
+          <Card className="statistics-card p-3">
             <h5 className="mb-3">Views vs Clicks</h5>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={[
@@ -225,7 +174,7 @@ const Statistics = ({ adsData = [] }) => {
       {/* 📊 Views by Region */}
       <Row className="mb-5">
         <Col md={6}>
-          <Card className="shadow-sm p-3">
+          <Card className="statistics-card p-3">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h5 className="mb-0">{metricLabels[locationMetric]} by Region</h5>
               <div className="d-flex gap-2">
@@ -299,7 +248,7 @@ const Statistics = ({ adsData = [] }) => {
           </Card>
         </Col>
         <Col md={6}>
-          <Card className="shadow-sm p-3">
+          <Card className="statistics-card p-3">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h5 className="mb-0">
                 {clickMetricLabels[clickLocationMetric] === "Clicks" ? "Clicks" : "Unique Clicks"} by Region
@@ -375,109 +324,40 @@ const Statistics = ({ adsData = [] }) => {
         </Col>
       </Row>
 
-      {/* 🥧 Regions & Apps Distribution */}
-      <Row className="mb-5">
-        <Col md={6}>
-          <Card className="shadow-sm p-3">
-            <h5 className="mb-3">Region Distribution (Views)</h5>
-            {regionData.length > 0 && regionData.some(item => item.views > 0) ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie data={regionData} dataKey="views" nameKey="name" outerRadius={120} label>
-                    {regionData.map((_, index) => (
-                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 300 }}>
-                No region view data available
-              </div>
-            )}
-          </Card>
-        </Col>
-
-        <Col md={6}>
-          <Card className="shadow-sm p-3">
-            <h5 className="mb-3">App Distribution (Views)</h5>
-            {appData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie data={appData} dataKey="views" nameKey="name" outerRadius={120} label>
-                    {appData.map((_, index) => (
-                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 300 }}>
-                No app view data available
-              </div>
-            )}
-          </Card>
-        </Col>
-      </Row>
-
-      <Row className="mb-5">
-        <Col md={6}>
-          <Card className="shadow-sm p-3">
-            <h5 className="mb-3">Region Distribution (Clicks)</h5>
-            {regionData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie data={regionData} dataKey="clicks" nameKey="name" outerRadius={120} label>
-                    {regionData.map((_, index) => (
-                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 300 }}>
-                No region click data available
-              </div>
-            )}
-          </Card>
-        </Col>
-
-        <Col md={6}>
-          <Card className="shadow-sm p-3">
-            <h5 className="mb-3">App Distribution (Clicks)</h5>
-            {appData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie data={appData} dataKey="clicks" nameKey="name" outerRadius={120} label>
-                    {appData.map((_, index) => (
-                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 300 }}>
-                No app click data available
-              </div>
-            )}
-          </Card>
-        </Col>
-      </Row>
-
-      {/* 📈 Daily Trend */}
+      {/* 📈 MongoDB event trend */}
       <Row>
         <Col>
-          <Card className="shadow-sm p-3">
-            <h5 className="mb-3">Daily Trend (Views & Clicks)</h5>
-            {dayTrendData.length > 0 ? (
+          <Card className="statistics-card p-3">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h5 className="mb-0">{trendPeriod[0].toUpperCase() + trendPeriod.slice(1)} Trend (Views & Clicks)</h5>
+              <Dropdown>
+                <Dropdown.Toggle variant="outline-primary" size="sm">
+                  {trendPeriod[0].toUpperCase() + trendPeriod.slice(1)}
+                </Dropdown.Toggle>
+                <Dropdown.Menu>
+                  {[
+                    ["daily", "Daily"],
+                    ["weekly", "Weekly"],
+                    ["monthly", "Monthly"],
+                    ["quarterly", "Quarterly"],
+                    ["yearly", "Yearly"]
+                  ].map(([value, label]) => (
+                    <Dropdown.Item
+                      key={value}
+                      active={trendPeriod === value}
+                      onClick={() => setTrendPeriod(value)}
+                    >
+                      {label}
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Menu>
+              </Dropdown>
+            </div>
+            {chartTrendData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={dayTrendData}>
+                <LineChart data={chartTrendData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="day" />
+                  <XAxis dataKey="label" />
                   <YAxis />
                   <Tooltip />
                   <Legend />
@@ -487,7 +367,7 @@ const Statistics = ({ adsData = [] }) => {
               </ResponsiveContainer>
             ) : (
               <div className="d-flex align-items-center justify-content-center text-muted" style={{ height: 300 }}>
-                No daily trend data available
+                No {trendPeriod} trend data available
               </div>
             )}
           </Card>

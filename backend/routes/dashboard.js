@@ -22,6 +22,65 @@ const groupEventsByLocation = (events, locationKey, countKey, uniqueKey) => {
   }));
 };
 
+const getTrendData = (viewEvents, clickEvents) => {
+  const trends = {
+    daily: {},
+    weekly: {},
+    monthly: {},
+    quarterly: {},
+    yearly: {}
+  };
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const formatDate = (date) => `${monthNames[date.getUTCMonth()].slice(0, 3)} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
+
+  const addEvents = (events, metric) => {
+    events.forEach((event) => {
+      const date = new Date(event._id.date);
+      if (Number.isNaN(date.getTime())) return;
+
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(date.getUTCDate()).padStart(2, "0");
+      const monthKey = `${year}-${month}`;
+      const monthLabel = `${monthNames[date.getUTCMonth()]} ${year}`;
+      const quarterKey = `${year}-Q${Math.ceil(Number(month) / 3)}`;
+      const quarterLabel = `Q${Math.ceil(Number(month) / 3)} ${year}`;
+      const yearKey = String(year);
+      const dayOfWeek = date.getUTCDay() || 7;
+      const weekStart = new Date(Date.UTC(year, date.getUTCMonth(), date.getUTCDate() - dayOfWeek + 1));
+      const weekEnd = new Date(Date.UTC(weekStart.getUTCFullYear(), weekStart.getUTCMonth(), weekStart.getUTCDate() + 6));
+      const weekKey = `${weekStart.getUTCFullYear()}-${String(weekStart.getUTCMonth() + 1).padStart(2, "0")}-${String(weekStart.getUTCDate()).padStart(2, "0")}`;
+      const weekLabel = `${formatDate(weekStart)} - ${formatDate(weekEnd)}`;
+      const count = Number(event.count) || 0;
+
+      [
+        ["daily", `${monthKey}-${day}`, formatDate(date)],
+        ["weekly", weekKey, weekLabel],
+        ["monthly", monthKey, monthLabel],
+        ["quarterly", quarterKey, quarterLabel],
+        ["yearly", yearKey, yearKey]
+      ].forEach(([period, key, label]) => {
+        trends[period][key] ??= { period: key, label, views: 0, clicks: 0 };
+        trends[period][key][metric] += count;
+      });
+    });
+  };
+
+  addEvents(viewEvents, "views");
+  addEvents(clickEvents, "clicks");
+
+  return Object.fromEntries(
+    Object.entries(trends).map(([period, values]) => [
+      period,
+      Object.values(values).sort((left, right) => left.period.localeCompare(right.period))
+    ])
+  );
+};
+
 router.get("/", authenticateuser, async (req, res) => {
 
 	try { 
@@ -160,6 +219,32 @@ router.post("/stats/:userid", async (req, res) => {
       },
       { $sort: { clicks: -1 } }
     ]).toArray();
+
+    const trendPipeline = [
+      { $match: { $expr: { $in: [{ $toString: "$adid" }, adidStrings] }, timestamp: { $exists: true } } },
+      {
+        $group: {
+          _id: {
+            adid: { $toString: "$adid" },
+            date: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp", timezone: "UTC" } }
+          },
+          count: { $sum: 1 }
+        }
+      }
+    ];
+
+    const [viewTrendEvents, clickTrendEvents] = await Promise.all([
+      mongo.collection("views").aggregate(trendPipeline).toArray(),
+      mongo.collection("clicks").aggregate(trendPipeline).toArray()
+    ]);
+
+    const trendDataByAd = {};
+    adidStrings.forEach((adid) => {
+      trendDataByAd[adid] = getTrendData(
+        viewTrendEvents.filter((event) => String(event._id.adid) === adid),
+        clickTrendEvents.filter((event) => String(event._id.adid) === adid)
+      );
+    });
 
     const locationByPincode = {};
     const pincodes = [...new Set([
@@ -322,6 +407,12 @@ router.post("/stats/:userid", async (req, res) => {
         ...doc,
         total_views: viewTotals.total_views,
         unique_views: viewTotals.unique_views,
+        trendData: trendDataByAd[String(doc.adid)] || {
+          daily: [],
+          monthly: [],
+          quarterly: [],
+          yearly: []
+        },
         viewsByPincode: pincodeViews,
         viewsByLocation: {
           pincode: pincodeViews,
