@@ -587,7 +587,7 @@ const handleDetailsButton = (adId) => {
               onClick={() => handleDetailsButton(ad.id)}
               className="d-flex align-items-center rounded-2 px-3"
             >
-              <BsBarChart className="me-1" /> Details
+              <BsBarChart className="me-1" /> Analytics
             </Button>
           </div>
 
