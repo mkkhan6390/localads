@@ -8,6 +8,7 @@ import Statistics from "./statistics";
 import Profile from "./profile";
 import PublisherApps from "./publisherApps";
 import { BsPlusCircle, BsBoxArrowRight, BsPencil, BsEye, BsCursor, BsMegaphone, BsPerson, BsSearch, BsSortDown } from "react-icons/bs";
+import Logo from '../Landing/logo';
 
 const Dashboard = ({ user }) => {
   const [userData, setUserData] = useState(null);
@@ -243,14 +244,7 @@ const Dashboard = ({ user }) => {
         <Navbar expand="lg" className="dashboard-navbar sticky-top">
           <Container fluid>
             {/* <img src={logo} alt="Naav Logo" height={40} width={70} className="me-2" /> */}
-            <Navbar.Brand
-              href="#home" className="d-flex align-items-center gap-2">
-              <span className="fs-2">
-                <span className="fw-light text-secondary">Local</span>
-                <span className="fw-bold text-primary">Ads</span>
-                <i className="bi bi-megaphone-fill text-primary fs-3"></i>
-              </span>
-            </Navbar.Brand>
+            <Logo />
 
             <Navbar.Toggle aria-controls="main-navbar" />
             <Navbar.Collapse id="main-navbar">

@@ -1,7 +1,7 @@
 // import 'bootstrap/dist/css/bootstrap.min.css';
 import { Navbar, Container, Nav, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-// import { BsMegaphone } from 'react-icons/bs';
+import Logo from './logo';
 import Hero from './Hero';
 import Features from './Features';
 import Testimonials from './Testimonials';
@@ -13,16 +13,7 @@ const Home = ({ isLoggedIn }) => {
     <>
       <Navbar bg="light" expand="lg" fixed="top" className="shadow-sm">
         <Container>
-
-          <Navbar.Brand
-            href="#home" className="d-flex align-items-center gap-2">
-            <span className="fs-2">
-              <span className="fw-light text-secondary">Local</span>
-              <span className="fw-bold text-primary">Ads</span>
-              <i className="bi bi-megaphone-fill text-primary fs-3"></i>
-            </span>
-          </Navbar.Brand>
-
+            <Logo />
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="ms-auto align-items-center gap-3">

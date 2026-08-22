@@ -14,8 +14,6 @@ const metricCards = [
 const normalizeDayTrendData = (dateMap = {}) => {
   const result = [];
 
-  if (!dateMap) return result;
-
   Object.values(dateMap).forEach((yearData) => {
     Object.values(yearData || {}).forEach((monthData) => {
       Object.values(monthData || {}).forEach((weekData) => {

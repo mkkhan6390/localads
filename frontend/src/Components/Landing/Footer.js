@@ -1,4 +1,5 @@
 import { Container, Row, Col, Form, Button } from "react-bootstrap";
+import Logo from './logo';
 
 function Footer() {
   const mutedStyle = { color: 'rgba(255,255,255,0.65)' };
@@ -9,11 +10,7 @@ function Footer() {
 
           {/* Brand */}
           <Col lg={4}>
-            <h3 className="fw-bold mb-3">
-              <i className="bi bi-megaphone-fill text-primary me-2"></i>
-              <span className="fw-light text-secondary">Local</span>
-              <span className="fw-bold text-primary">Ads</span>
-            </h3>
+            <Logo />
 
             <p className="text-secondary mb-4">
               Connecting advertisers with premium platforms for maximum
