@@ -1,4 +1,4 @@
-import { Navbar, Container, Row, Col, Button } from 'react-bootstrap';
+import { Container, Row, Col, Button } from 'react-bootstrap';
 import growthlogo from '../../growth.png';
 import heroBg from '../../hero-bg.png'; // Path to your downloaded background image
 

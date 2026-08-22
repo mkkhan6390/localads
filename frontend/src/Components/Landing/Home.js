@@ -1,7 +1,7 @@
 // import 'bootstrap/dist/css/bootstrap.min.css';
 import { Navbar, Container, Nav, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import { BsMegaphone } from 'react-icons/bs';
+// import { BsMegaphone } from 'react-icons/bs';
 import Hero from './Hero';
 import Features from './Features';
 import Testimonials from './Testimonials';

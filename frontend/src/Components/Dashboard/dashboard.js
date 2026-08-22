@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Container, Navbar, Nav, Button, Row, Col, Card, Badge, Spinner, Alert, Toast, ToastContainer, OverlayTrigger, Popover, Form, Dropdown, ButtonGroup } from "react-bootstrap";
 import api from "../../api";
 import NewAdModal from "./newAd";
@@ -7,7 +7,7 @@ import ActivateAdModal from "./ActivateAd";
 import Statistics from "./statistics";
 import Profile from "./profile";
 import PublisherApps from "./publisherApps";
-import { BsPlusCircle, BsBoxArrowRight, BsPencil, BsEye, BsCursor, BsMegaphone, BsPerson, BsSearch, BsSortDown, BsChevronDown } from "react-icons/bs";
+import { BsPlusCircle, BsBoxArrowRight, BsPencil, BsEye, BsCursor, BsMegaphone, BsPerson, BsSearch, BsSortDown } from "react-icons/bs";
 
 const Dashboard = ({ user }) => {
   const [userData, setUserData] = useState(null);
