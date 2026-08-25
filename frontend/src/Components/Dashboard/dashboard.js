@@ -382,48 +382,88 @@ const handleDetailsButton = (adId) => {
                 <div className="d-flex justify-content-between align-items-center mb-4">
                   <h4>Your Advertisements</h4>
                 </div>
-
-                {/* 🔹 Dynamic Summary Metric Card */}
-                <Row className="mb-4 g-3">
-                  <Col xs={12} sm={4}>
-                    <Card className="border-0 shadow-sm rounded-4 p-2">
-                      <Card.Body className="p-2 d-flex align-items-center justify-content-between">
+              {/*Summary Metric cards - one per tab ,always visible */}
+              <Row className="md-4 g-3">
+                <Col xs={12} sm={6} md={3}>
+                  <Card
+                  role="button"
+                  onClick={() => setStatusFilter("all")}
+                  className="border-0 shadow-sm rounded-4 p-2"
+                  style={statusFilter === "all" ? { outline: '2px solid #534AB7'} :{}}
+                  >
+                    <Card.Body className="p-2 d-flex align-items-center justify-content-between">
+                      <div>
+                        <div className="text-muted small fw-medium">Total Ads</div>
+                        <div className="fs-3 fw-bold">{totalAdsCount}</div>
+                      </div>
+                      <div className="d-flex align-item-center justify-content center rounded-3 p-2"
+                          style={{backgroundColor: '#ede7f6', color:'#512da8'}}>
+                            <BsMegaphone size={20} />
+                          </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col xs={12} sm={6} md={3}>
+                  <Card 
+                    role="button"
+                    onClick={() => setStatusFilter("active")}
+                    className="border-0 shadow-sm rounded-4 p-2"
+                    style={statusFilter === "active" ? { outline: '2px solid #2e7d32'} : {}}>
+                      <Card.Body className="p-2 d-flex align-item-center justify-content-between">
                         <div>
-                          <div className="text-muted small fw-medium">
-                            {statusFilter === "all" && "Total Ads"}
-                            {statusFilter === "active" && "Total Active Ads"}
-                            {statusFilter === "inactive" && "Total Inactive Ads"}
-                            {statusFilter === "expired" && "Total Expired Ads"}
-                          </div>
-                          <div className="fs-3 fw-bold">
-                            {statusFilter === "all" && totalAdsCount}
-                            {statusFilter === "active" && activeAdsCount}
-                            {statusFilter === "inactive" && inactiveAdsCount}
-                            {statusFilter === "expired" && expiredAdsCount}
-                          </div>
+                          <div className="text-muted small fw-medium">Total Active Ads</div>
+                          <div className="fs-3 fw-bold">{activeAdsCount}</div> 
                         </div>
-                        <div
-                          className="d-flex align-items-center justify-content-center rounded-3 p-2"
-                          style={{
-                            backgroundColor:
-                              statusFilter === "active" ? '#e8f5e9' :
-                              statusFilter === "inactive" ? '#ffebee' :
-                              statusFilter === "expired" ? '#ffebee' : '#ede7f6',
-                            color:
-                              statusFilter === "active" ? '#2e7d32' :
-                              statusFilter === "inactive" ? '#c62828' :
-                              statusFilter === "expired" ? '#c62828' : '#512da8'
-                          }}
-                        >
-                          <BsMegaphone size={20} />
+                        <div className="d-flex align-items-center justify-content-center rounded-3 p-2"
+                        style={{backgroundColor:'#e8f5e9', color:'#2e7d32'}}>
+                          <BsMegaphone size={20}/>
                         </div>
                       </Card.Body>
                     </Card>
-                  </Col>
-                </Row>
+                </Col>
+                <Col xs={12} sm={6} md={3}>
+                <Card
+                  role="button"
+                  onClick={() => setStatusFilter("inactive")}
+                  className="border-0 shadow-sm rounded-4 p-2"
+                  styel={statusFilter === "inactive" ? { outline: '2px solid #c62828'} : {}}
+                  >
+                    <Card.Body className="p-2 d-flex align-item-center justify-content-between">
+                      <div>
+                        <div className="text-muted small fw-medium">Total Inactive Ads</div>
+                        <div className="fs-3 fw-bold">{inactiveAdsCount}</div> 
+                      </div>
+                      <div className="d-flex align-items-center justify-content-center rounded-3 p-2"
+                        style={{backgroundColor:'#ffebee', color: '#c62828'}}>
+                          <BsMegaphone size={20}/>
+                        </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col xs={12} sm={6} md={3}>
+                <Card
+                role="button"
+                onClick={()=> setStatusFilter("expired")}
+                className="border-0 shadow-sm rounded-4 p-2"
+                style={statusFilter === "expired" ? {outline: '2px solid #c62828'} : {}}
+                >
+                  <Card.Body className="p-2 d-flex align-items-center justify-content-between">
+                    <div>
+                      <div className="text-muted small fw-medium">Total Expired Ads</div>
+                      <div className="fs-3 fw-bold">{expiredAdsCount}</div>
+                    </div>
+                     <div className="d-flex align-items-center justify-content-center rounded-3 p-2"
+                        style={{ backgroundColor: '#ffebee', color: '#c62828' }}>
+                       <BsMegaphone size={20} />
+                    </div>
+                  </Card.Body>
+                </Card>
+                </Col>
+              </Row>
+                
 
                 {/* Search Bar + Status Filters + Sort */}
-                <div className="d-flex flex-wrap gap-3 align-items-center mb-4">
+                <div className="d-flex flex-wrap gap-3 align-items-center mb-4 mt-4">
                   <div style={{ position: 'relative', minWidth: 260, flex: '1 1 260px', maxWidth: 360 }}>
                     <BsSearch
                       style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#999' }}
@@ -444,28 +484,28 @@ const handleDetailsButton = (adId) => {
                       style={statusFilter === "all" ? { backgroundColor: '#534AB7', borderColor: '#534AB7' } : {}}
                       onClick={() => setStatusFilter("all")}
                     >
-                      All
+                      All ({totalAdsCount})
                     </Button>
                     <Button
                       size="sm"
                       variant={statusFilter === "active" ? "success" : "outline-secondary"}
                       onClick={() => setStatusFilter("active")}
                     >
-                      Active
+                      Active ({activeAdsCount})
                     </Button>
                     <Button
                       size="sm"
                       variant={statusFilter === "inactive" ? "secondary" : "outline-secondary"}
                       onClick={() => setStatusFilter("inactive")}
                     >
-                      Inactive
+                      Inactive ({inactiveAdsCount})
                     </Button>
                     <Button
                       size="sm"
                       variant={statusFilter === "expired" ? "danger" : "outline-secondary"}
                       onClick={() => setStatusFilter("expired")}
                     >
-                      Expired
+                      Expired ({expiredAdsCount})
                     </Button>
                   </ButtonGroup>
 
