@@ -159,13 +159,31 @@ router.patch("/email/:id", authenticateuser, (req, res) => {
 	const id = req.params.id;
 	const email = req.body.email;
 	const modifieddate = getCurrentTimestamp();
-	const updatequery = `update users set email=?, modifiedtime=? where id=?`;
+	const updatequery = `update users set email=?, modifieddate=? where id=?`;
 	const params = [email, modifieddate, id];
 
 	db.query(updatequery, params)
 		.then(result => {
 			if (result.affectedRows === 0) return res.status(404).send("new E-mail cannot be same as previous one");
-			res.status(200).send("E-mail successfully changed to : ", email);
+			res.status(200).send("E-mail successfully updated");
+		})
+		.catch(error => {
+			return res.status(500).json({error: error.message});
+		});
+});
+
+router.patch("/phone/:id", authenticateuser, (req, res) => {
+
+	const id = req.params.id;
+	const phone = req.body.phone;
+	const modifieddate = getCurrentTimestamp();
+	const updatequery = `update users set phone=?, modifieddate=? where id=?`;
+	const params = [phone, modifieddate, id];
+
+	db.query(updatequery, params)
+		.then(result => {
+			if (result.affectedRows === 0) return res.status(404).send("new phone number cannot be same as previous one");
+			res.status(200).send("Phone number successfully updated");
 		})
 		.catch(error => {
 			return res.status(500).json({error: error.message});
@@ -175,9 +193,14 @@ router.patch("/email/:id", authenticateuser, (req, res) => {
 router.patch('/password/:id', authenticateuser, (req, res) => {
 
     const id = req.params.id;
-    const newpassword = req.body.newpassword;
-	const salt = bcrypt.genSaltSync();
-	const hashednewPassword = bcrypt.hashSync(newpassword, salt);
+    const newpassword = req.body.newpassword || req.body.password;
+
+    if (!newpassword) {
+        return res.status(400).json({ message: "New password is required" });
+    }
+
+    const salt = bcrypt.genSaltSync(10);
+    const hashednewPassword = bcrypt.hashSync(newpassword, salt);
     const modifieddate = getCurrentTimestamp();
 	
     const updatequery = `update users set password=?, modifieddate=? where id=?`
@@ -185,7 +208,7 @@ router.patch('/password/:id', authenticateuser, (req, res) => {
 	
     db.query(updatequery, params)
     .then(result => {
-        if (result.affectedRows === 0) return res.status(404).send("new password cannot be same as previous one");
+        if (result.affectedRows === 0) return res.status(404).send("User not found or password unchanged");
         res.status(200).send("password successfully changed");
     })
     .catch(error => {

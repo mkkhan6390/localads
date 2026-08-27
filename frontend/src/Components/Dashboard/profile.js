@@ -43,6 +43,15 @@ const Profile = ({ user, userData, onUpdate }) => {
     const [apiKey, setApiKey] = useState(null);
     const [showKey, setShowKey] = useState(false);
 
+    const requireToken = () => {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            navigate("/login");
+            return null;
+        }
+        return token;
+    };
+
     const extractErrorMessage = (error, fallback) => {
         const data = error?.response?.data;
         if (typeof data === "string") return data;
@@ -148,32 +157,24 @@ const Profile = ({ user, userData, onUpdate }) => {
 
     // 🔑 Generate/Reset API Key
     const generateApiKey = async () => {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            navigate("/login");
-            return;
-        }
+        const token = requireToken();
+        if (!token) return;
 
         try {
             const response = await api.patch("http://localhost:5000/user/genkey", {}, { headers: { authorization: `Bearer ${token}` } });
             setApiKey(response.data.apikey)
             setShowKey(false);
         } catch (error) {
-            console.log(error)
             alert(error.message)
         }
     }
 
     const fetchApiKey = async () => {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            navigate("/login");
-            return;
-        }
+        const token = requireToken();
+        if (!token) return;
 
         try {
             const response = await api.get("http://localhost:5000/user/key", { headers: { Authorization: `Bearer ${token}` } });
-
             if (response.data.apikey) {
                 setApiKey(response.data.apikey)
                 setShowKey(false);
@@ -182,14 +183,11 @@ const Profile = ({ user, userData, onUpdate }) => {
                     return await generateApiKey()
                 }
             }
-
         } catch (error) {
-            console.log(error)
             alert(error.message)
         }
     };
 
-    // Copy to clipboard
     const copyToClipboard = () => {
         if (apiKey) {
             navigator.clipboard.writeText(apiKey);

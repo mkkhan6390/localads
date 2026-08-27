@@ -11,6 +11,16 @@ router.get("/", authenticateuser, async (req, res) => {
 		const userid = req.user.id;
 		const user = req.user; 
 
+		// Fetch email/phone since the JWT payload only carries id, username, usertype
+		let email, phone;
+		try {
+			const userRows = await db.query(`SELECT email, phone FROM users WHERE id = ?`, [userid]);
+			email = userRows[0]?.email;
+			phone = userRows[0]?.phone;
+		} catch (userErr) {
+			console.log("Failed to fetch user contact info:", userErr.message);
+		}
+
 		let ads;
 		try {
 			// Explicitly list columns — SELECT a.* with CAST alias causes duplicate keys
@@ -50,7 +60,7 @@ router.get("/", authenticateuser, async (req, res) => {
 			}));
 		}
 
-		res.json({username: user.username, ads});
+		res.json({username: user.username, email, phone, ads});
 
 	} catch (err) {
 		console.log(err)
