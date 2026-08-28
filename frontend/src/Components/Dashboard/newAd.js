@@ -15,31 +15,56 @@ import {
   BsPencilSquare, BsCardText, BsGeoAlt, BsCheck 
 } from 'react-icons/bs';
 
-// Allowed creative formats: [width, height, label]
-const ALLOWED_SPECS = [
+// Recommended creative formats (shown as guidance, no longer a hard requirement)
+const RECOMMENDED_SPECS = [
   { w: 1200, h: 628, label: 'Horizontal 16:9 (1200×628, web banners)' },
   { w: 1080, h: 1080, label: 'Square 1:1 (1080×1080, feed ads)' },
   { w: 1080, h: 1920, label: 'Vertical 9:16 (1080×1920, stories)' },
 ];
 
-// Reads an image file's pixel dimensions and checks against ALLOWED_SPECS
-function checkImageSpecs(file) {
+// Default min/max pixel dimensions and file size accepted for an ad image.
+// Anything within this range is accepted, instead of requiring an exact
+// match to one of the RECOMMENDED_SPECS above.
+const IMAGE_CONSTRAINTS = {
+  MIN_WIDTH: 320,
+  MIN_HEIGHT: 320,
+  MAX_WIDTH: 4000,
+  MAX_HEIGHT: 4000,
+  MAX_FILE_SIZE_MB: 10,
+};
+
+// Reads an image file's pixel dimensions and checks them against
+// IMAGE_CONSTRAINTS (min/max range) rather than requiring an exact match.
+function checkImageSpecs(file, constraints = IMAGE_CONSTRAINTS) {
+  const { MIN_WIDTH, MIN_HEIGHT, MAX_WIDTH, MAX_HEIGHT } = constraints;
+
   return new Promise((resolve) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       const { width, height } = img;
       URL.revokeObjectURL(url);
-      const match = ALLOWED_SPECS.find(s => s.w === width && s.h === height);
-      resolve({ valid: !!match, width, height });
+
+      let reason = null;
+      if (width < MIN_WIDTH || height < MIN_HEIGHT) {
+        reason = 'too_small';
+      } else if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+        reason = 'too_large';
+      }
+
+      resolve({ valid: !reason, width, height, reason });
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      resolve({ valid: false, width: 0, height: 0 });
+      resolve({ valid: false, width: 0, height: 0, reason: 'unreadable' });
     };
     img.src = url;
   });
 }
+
+// Grace period (seconds) after confirming publish, during which the user
+// can hit Emergency Stop to abort before the ad actually goes out.
+const PUBLISH_GRACE_PERIOD_SECONDS = 15;
 
 function NewAdModal(props) {
 
@@ -64,7 +89,12 @@ function NewAdModal(props) {
   const [locating, setLocating] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(1); // Multi-step wizard state tracker
+  const [showConfirmModal, setShowConfirmModal] = useState(false); // Final "ready to publish" confirmation
+  const [pendingPublish, setPendingPublish] = useState(false); // true during the emergency-stop grace window
+  const [graceSecondsLeft, setGraceSecondsLeft] = useState(0);
   const fileInputRef = useRef(null);
+  const publishTimeoutRef = useRef(null);
+  const graceIntervalRef = useRef(null);
 
   // Safely extract the ad ID whether props.selectedAd is an object or primitive ID
   const adId = typeof props.selectedAd === 'object' && props.selectedAd !== null 
@@ -82,6 +112,11 @@ function NewAdModal(props) {
       setErrors({});
       setExistingImageUrl('');
       setCurrentStep(1);
+      setShowConfirmModal(false);
+      clearTimeout(publishTimeoutRef.current);
+      clearInterval(graceIntervalRef.current);
+      setPendingPublish(false);
+      setGraceSecondsLeft(0);
 
       if (isEditMode) {
         // Edit mode: fetch existing ad data and populate the form
@@ -135,6 +170,80 @@ function NewAdModal(props) {
     if (!formValues.displaylevel) newErrors.displaylevel = 'Please select a display level.';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Validates only the fields relevant to a given wizard step, so we can
+  // block "Next Step" until that step's required details are complete.
+  const validateStep = (step) => {
+    const newErrors = {};
+    if (step === 1) {
+      if (!formValues.type) newErrors.type = 'Please select an ad type.';
+      if (!formValues.file && !isEditMode) newErrors.file = 'Please upload a file.';
+    } else if (step === 2) {
+      if (!formValues.title) newErrors.title = 'Title is required.';
+      if (!formValues.description) newErrors.description = 'Description is required.';
+      if (!/^[1-9][0-9]{5}$/.test(formValues.pincode)) newErrors.pincode = 'Enter a valid 6-digit pincode.';
+      if (!formValues.displaylevel) newErrors.displaylevel = 'Please select a display level.';
+    }
+    setErrors((prev) => ({ ...prev, ...newErrors }));
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // "Next Step" is blocked (with an alert) until the current step's
+  // required details are filled in completely.
+  const handleNextStep = () => {
+    setErrorMessage('');
+    if (!validateStep(currentStep)) {
+      setErrorMessage('Please fill in all required details before continuing.');
+      return;
+    }
+    setCurrentStep(currentStep + 1);
+  };
+
+  // Details Verification & Completeness Check: run before showing the
+  // final "ready to publish" confirmation. Blocks progression (with an
+  // alert) if any mandatory field is missing.
+  const handlePublishClick = () => {
+    setErrorMessage('');
+    if (!validateForm()) {
+      setErrorMessage('Please fill in all required details before continuing.');
+      return;
+    }
+    setShowConfirmModal(true);
+  };
+
+  // Confirmation modal "Yes": start the emergency-stop grace window instead
+  // of publishing immediately, so the user has a last chance to abort.
+  const handleConfirmPublish = () => {
+    setShowConfirmModal(false);
+    setPendingPublish(true);
+    setGraceSecondsLeft(PUBLISH_GRACE_PERIOD_SECONDS);
+
+    graceIntervalRef.current = setInterval(() => {
+      setGraceSecondsLeft((prev) => (prev > 1 ? prev - 1 : 0));
+    }, 1000);
+
+    publishTimeoutRef.current = setTimeout(() => {
+      clearInterval(graceIntervalRef.current);
+      setPendingPublish(false);
+      handleSubmit();
+    }, PUBLISH_GRACE_PERIOD_SECONDS * 1000);
+  };
+
+  // Confirmation modal "No": send the user back to Step 1 to make changes.
+  const handleCancelPublish = () => {
+    setShowConfirmModal(false);
+    setCurrentStep(1);
+  };
+
+  // 🚨 Emergency Stop: abort the pending publish before it goes out, and
+  // return the user to Step 1 with all form data preserved.
+  const handleEmergencyStop = () => {
+    clearTimeout(publishTimeoutRef.current);
+    clearInterval(graceIntervalRef.current);
+    setPendingPublish(false);
+    setGraceSecondsLeft(0);
+    setCurrentStep(1);
   };
 
   const handleChange = (e) => {
@@ -220,25 +329,35 @@ function NewAdModal(props) {
     // Validate file if one is selected (both create and edit)
     if (formValues.file) {
       const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      
+      const maxSize = IMAGE_CONSTRAINTS.MAX_FILE_SIZE_MB * 1024 * 1024;
+
       if (!allowedTypes.includes(formValues.file.type)) {
         setErrorMessage('Only JPEG, PNG, and WebP images are allowed');
         return;
       }
       
       if (formValues.file.size > maxSize) {
-        setErrorMessage('File size must be less than 5MB');
+        setErrorMessage(`File size must be less than ${IMAGE_CONSTRAINTS.MAX_FILE_SIZE_MB}MB`);
         return;
       }
 
       // Enforce required creative dimensions (16:9, 1:1, or 9:16)
       const specCheck = await checkImageSpecs(formValues.file);
       if (!specCheck.valid) {
-        setErrorMessage(
-          `Image dimensions are invalid. Required: 1200×628, 1080×1080, or 1080×1920 px. ` +
-          `Your image is ${specCheck.width}×${specCheck.height}px.`
-        );
+        const { MIN_WIDTH, MIN_HEIGHT, MAX_WIDTH, MAX_HEIGHT } = IMAGE_CONSTRAINTS;
+        if (specCheck.reason === 'too_small') {
+          setErrorMessage(
+            `Image is too small. Minimum size is ${MIN_WIDTH}×${MIN_HEIGHT}px. ` +
+            `Your image is ${specCheck.width}×${specCheck.height}px.`
+          );
+        } else if (specCheck.reason === 'too_large') {
+          setErrorMessage(
+            `Image is too large. Maximum size is ${MAX_WIDTH}×${MAX_HEIGHT}px. ` +
+            `Your image is ${specCheck.width}×${specCheck.height}px.`
+          );
+        } else {
+          setErrorMessage('Could not read this image file. Please choose a different file.');
+        }
         return;
       }
     }
@@ -307,6 +426,7 @@ function NewAdModal(props) {
     : existingImageUrl;
 
   return (
+    <>
     <Modal 
       show={props.showNewAdModal} 
       onHide={() => props.setShowNewAdModal(false)}
@@ -327,9 +447,15 @@ function NewAdModal(props) {
         <Modal.Title>{isEditMode ? 'Edit Advertisement' : 'Create New Advertisement'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
+        {pendingPublish && (
+          <Alert variant="warning" className="m-3 d-flex align-items-center justify-content-between">
+            <span> Publishing in {graceSecondsLeft}s — you can still stop this.</span>
+            <Button variant="danger" size="sm" onClick={handleEmergencyStop}>Emergency Stop</Button>
+          </Alert>
+        )}
         {success && (
           <Alert variant="success" className="m-3 d-flex align-items-center">
-            <BsCheck2Circle className="me-2" /> Advertisement {isEditMode ? 'updated' : 'created'} successfully![cite: 3]
+            <BsCheck2Circle className="me-2" /> Advertisement {isEditMode ? 'updated' : 'created'} successfully!
           </Alert>
         )}
         {errorMessage &&
@@ -412,8 +538,13 @@ function NewAdModal(props) {
                       <Form.Label><BsUpload className="me-2" />Upload File</Form.Label>
                       <div className={`dropzone ${dragActive ? 'active' : ''}`} onClick={() => fileInputRef.current && fileInputRef.current.click()}>
                         <BsUpload size={24} className="text-primary mb-2" />
-                        <div className="fw-semibold">Click to upload or drag &amp; drop file[cite: 3]</div>
-                        <small className="text-muted">PNG, JPG, or WEBP up to 5MB[cite: 3]</small>
+                        <div className="fw-semibold">Click to upload or drag &amp; drop file</div>
+                        <small className="text-muted">
+                          PNG, JPG, or WEBP, up to {IMAGE_CONSTRAINTS.MAX_FILE_SIZE_MB}MB
+                          ({IMAGE_CONSTRAINTS.MIN_WIDTH}×{IMAGE_CONSTRAINTS.MIN_HEIGHT}px
+                          – {IMAGE_CONSTRAINTS.MAX_WIDTH}×{IMAGE_CONSTRAINTS.MAX_HEIGHT}px).
+                          Recommended: {RECOMMENDED_SPECS.map(s => `${s.w}×${s.h}`).join(', ')}.
+                        </small>
                         <Form.Control ref={fileInputRef} type="file" name="file" accept="image/jpeg,image/png,image/webp" onChange={handleChange} className="d-none" />
                       </div>
                       {formValues.file && <small className="text-muted mt-1 d-block">Selected: {formValues.file.name}</small>}
@@ -425,13 +556,13 @@ function NewAdModal(props) {
                   <div>
                     <Form.Group className="mb-3">
                       <Form.Label><BsPencilSquare className="me-2" />Title</Form.Label>
-                      <Form.Control type="text" name="title" value={formValues.title} onChange={handleChange} isInvalid={!!errors.title} placeholder="Enter a catchy title for your ad[cite: 3]" />
+                      <Form.Control type="text" name="title" value={formValues.title} onChange={handleChange} isInvalid={!!errors.title} placeholder="Enter a catchy title for your ad" />
                       <Form.Control.Feedback type="invalid">{errors.title}</Form.Control.Feedback>
                     </Form.Group>
 
                     <Form.Group className="mb-3">
                       <Form.Label><BsCardText className="me-2" />Description</Form.Label>
-                      <Form.Control as="textarea" rows={3} name="description" value={formValues.description} onChange={handleChange} isInvalid={!!errors.description} placeholder="Describe your advertisement[cite: 3]" />
+                      <Form.Control as="textarea" rows={3} name="description" value={formValues.description} onChange={handleChange} isInvalid={!!errors.description} placeholder="Describe your advertisement" />
                       <Form.Control.Feedback type="invalid">{errors.description}</Form.Control.Feedback>
                     </Form.Group>
 
@@ -465,9 +596,9 @@ function NewAdModal(props) {
 
                 {currentStep === 3 && (
                   <div>
-                    <h6 className="fw-bold mb-3">Final Review &amp; Launch Options[cite: 3]</h6>
+                    <h6 className="fw-bold mb-3">Final Review &amp; Launch Options</h6>
                     <div className="p-3 mb-3 bg-light rounded border">
-                      <p className="mb-1 text-success fw-bold">✓ Media &amp; Information Ready[cite: 3]</p>
+                      <p className="mb-1 text-success fw-bold">✓ Media &amp; Information Ready</p>
                       <p className="mb-1"><strong>Title:</strong> {formValues.title || 'Untitled'}</p>
                       <p className="mb-0"><strong>Target Pincode:</strong> {formValues.pincode || 'Not set'}</p>
                     </div>
@@ -483,10 +614,10 @@ function NewAdModal(props) {
                   )}
 
                   {currentStep < 3 ? (
-                    <Button className="gradient-btn" onClick={() => setCurrentStep(currentStep + 1)}>Next Step →</Button>
+                    <Button className="gradient-btn" onClick={handleNextStep}>Next Step →</Button>
                   ) : (
-                    <Button className="gradient-btn" onClick={handleSubmit} disabled={loading}>
-                      {loading ? <Spinner size="sm" animation="border" /> : '🚀 Publish Ad'}[cite: 3]
+                    <Button className="gradient-btn" onClick={handlePublishClick} disabled={loading}>
+                      {loading ? <Spinner size="sm" animation="border" /> : '🚀 Publish Ad'}
                     </Button>
                   )}
                 </div>
@@ -495,22 +626,22 @@ function NewAdModal(props) {
 
             {/* RIGHT SIDE: Split-Screen Live Preview Layout */}
             <Col lg={5} className="preview-pane p-4 d-flex flex-column align-items-center justify-content-center">
-              <span className="text-muted fw-bold small mb-3" style={{ letterSpacing: '1.5px' }}>LIVE AD PREVIEW[cite: 3]</span>
+              <span className="text-muted fw-bold small mb-3" style={{ letterSpacing: '1.5px' }}>LIVE AD PREVIEW</span>
               
               <div className="card shadow-sm border-0 p-3 w-100" style={{ maxWidth: '300px', borderRadius: '16px' }}>
                 <div className="bg-light rounded d-flex align-items-center justify-content-center mb-3" style={{ height: '160px', overflow: 'hidden' }}>
                   {imagePreviewUrl ? (
                     <img src={imagePreviewUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <span className="text-muted small">Image Preview Appears Here[cite: 3]</span>
+                    <span className="text-muted small">Image Preview Appears Here</span>
                   )}
                 </div>
-                <h6 className="fw-bold text-dark text-truncate">{formValues.title || 'Your Catchy Title'}[cite: 3]</h6>
+                <h6 className="fw-bold text-dark text-truncate">{formValues.title || 'Your Catchy Title'}</h6>
                 <p className="text-muted small" style={{ fontSize: '11px', minHeight: '30px' }}>
-                  {formValues.description || 'Ad description text will populate here as you type to give you a live preview.'}[cite: 3]
+                  {formValues.description || 'Ad description text will populate here as you type to give you a live preview.'}
                 </p>
                 <div className="d-flex gap-2 mt-2">
-                  <span className="badge bg-light text-primary border">📍 {formValues.pincode || 'No Pincode'}[cite: 3]</span>
+                  <span className="badge bg-light text-primary border"> {formValues.pincode || 'No Pincode'}</span>
                 </div>
               </div>
             </Col>
@@ -518,6 +649,23 @@ function NewAdModal(props) {
         )}
       </Modal.Body>
     </Modal>
+
+    {/* Ready to Publish & Final Confirmation modal */}
+    <Modal show={showConfirmModal} onHide={handleCancelPublish} centered>
+      <Modal.Header closeButton>
+        <Modal.Title>Confirm Publish</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        Are you sure you want to publish this ad? Do you want to make any changes before publishing?
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={handleCancelPublish}>No, make changes</Button>
+        <Button className="gradient-btn" onClick={handleConfirmPublish} disabled={loading}>
+          {loading ? <Spinner size="sm" animation="border" /> : 'Yes, publish'}
+        </Button>
+      </Modal.Footer>
+    </Modal>
+    </>
   );
 }
 
