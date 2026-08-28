@@ -230,6 +230,36 @@ router.put("/update/:id", upload.single("file"), authenticateuser, resolvePincod
 	}
 })
 
+// PUT CALL TO IMMEDIATELY STOP/PAUSE AN AD THAT'S ALREADY LIVE
+// Flips isactive to 0 so vw_ads / refresh_adsequence stop serving it right away.
+router.put("/pause/:id", authenticateuser, async (req, res) => {
+	try {
+		const adId = req.params.id;
+		const userid = req.body.userid || req.query.userid;
+
+		const updatequery = `UPDATE ads SET isactive = b'0' WHERE id = ? AND owner_id = ?`;
+		const result = await db.query(updatequery, [adId, userid]);
+
+		if (result.affectedRows === 0) {
+			return res.status(404).json({
+				error: "Ad not found or you don't have permission to pause it"
+			});
+		}
+
+		return res.status(200).json({
+			success: true,
+			message: "Ad has been stopped and is no longer being served"
+		});
+
+	} catch (error) {
+		console.error("Error pausing ad:", error);
+		return res.status(500).json({
+			error: "Unable to process request",
+			details: process.env.NODE_ENV === 'DEV' ? error.message : undefined
+		});
+	}
+})
+
 router.get("/activate", authenticateuser, async (req, res) => {
 	
 	const updatequery = `update ads set landing_url = ?, isactive = b'1', remaining = 100 where id = ?`
