@@ -3,7 +3,9 @@ import "./App.css";
 import 'bootstrap/dist/css/bootstrap.css';
 import "bootstrap-icons/font/bootstrap-icons.css";
 import {BrowserRouter as Router, Route, Routes, Navigate} from "react-router-dom";
-import AuthPage from "./Components/auth/AuthPage.js";
+import Login from "./Components/auth/Login.js";
+import Register from "./Components/auth/Register.js";
+import RegisterDeveloper from "./Components/auth/RegisterDeveloper.js";
 import Dashboard from "./Components/Dashboard/dashboard";
 import Home from "./Components/Landing/Home.js";
 import api from "./api.js";
@@ -41,7 +43,9 @@ function App() {
 				<Routes>
 					
 					<Route path="/" element={<Home isLoggedIn={isLoggedIn}/>} />
-					<Route path="/login" element={!isLoggedIn() ? <AuthPage setUser={setUser}/> : <Navigate to="/dashboard" />} />
+					<Route path="/login" element={!isLoggedIn() ? <Login setUser={setUser}/> : <Navigate to="/dashboard" />} />
+					<Route path="/register" element={!isLoggedIn() ? <Register/> : <Navigate to="/dashboard" />} />
+					<Route path="/register/developer" element={!isLoggedIn() ? <RegisterDeveloper/> : <Navigate to="/dashboard" />} />
 					
 					<Route
 						path="/dashboard"
