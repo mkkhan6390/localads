@@ -181,12 +181,12 @@ const handleDetailsButton = (adId) => {
   };
 
   const profilePopover = (
-    <Popover id="profile-popover" style={{ minWidth: 260, borderRadius: 12, border: '1px solid #e0e0e0', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+    <Popover id="profile-popover" className="shadow border-0 rounded-4" style={{ minWidth: 260 }}>
       <Popover.Body className="p-3">
         <div className="d-flex align-items-center mb-3 pb-2 border-bottom">
           <div
-            className="d-flex align-items-center justify-content-center fw-bold me-3"
-            style={{ width: 44, height: 44, borderRadius: '50%', backgroundColor: '#534AB7', color: '#fff', fontSize: 16 }}
+            className="d-flex align-items-center justify-content-center fw-bold me-3 rounded-circle text-white"
+            style={{ width: 44, height: 44, backgroundColor: '#534AB7', fontSize: 16 }}
           >
             {userData?.username ? userData.username.slice(0, 2).toUpperCase() : '??'}
           </div>
@@ -206,7 +206,7 @@ const handleDetailsButton = (adId) => {
             </div>
             <div className="d-flex justify-content-between small text-muted">
               <span>Total Campaign Ads:</span>
-              <strong style={{ color: '#333' }}>{totalAdsCount}</strong>
+              <strong className="text-dark">{totalAdsCount}</strong>
             </div>
           </div>
         )}
@@ -240,7 +240,45 @@ const handleDetailsButton = (adId) => {
   );
 
   return (
-    <div className="min-vh-100 d-flex flex-column" style={{ backgroundColor: '#FFFBEB' }}>
+    <div className="min-vh-100 d-flex flex-column bg-light">
+      {/* Keyframe Animations utilizing Bootstrap Context Colors */}
+      <style>{`
+        @keyframes asteroidSweep {
+          0% {
+            left: -40%;
+            opacity: 0;
+          }
+          20% {
+            opacity: 1;
+          }
+          80% {
+            opacity: 1;
+          }
+          100% {
+            left: 110%;
+            opacity: 0;
+          }
+        }
+
+        @keyframes asteroidPulseOnce {
+          0% {
+            opacity: 0.2;
+            box-shadow: 0 0 2px var(--bs-primary), 0 0 4px var(--bs-info);
+            transform: scaleX(0.5);
+          }
+          50% {
+            opacity: 1;
+            box-shadow: 0 0 12px var(--bs-primary), 0 0 24px var(--bs-info);
+            transform: scaleX(1.1);
+          }
+          100% {
+            opacity: 1;
+            box-shadow: 0 0 6px var(--bs-primary), 0 0 14px var(--bs-info);
+            transform: scaleX(1);
+          }
+        }
+      `}</style>
+
       <ToastContainer position="top-end" className="p-3" style={{ zIndex: 1060 }}>
         <Toast onClose={() => setShowToast(false)} show={showToast} delay={3000} autohide>
           <Toast.Header>
@@ -251,13 +289,13 @@ const handleDetailsButton = (adId) => {
       </ToastContainer>
 
       {loading ? (
-        <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+        <div className="d-flex justify-content-center align-items-center vh-100">
           <Spinner animation="border" role="status" variant="primary">
             <span className="visually-hidden">Loading...</span>
           </Spinner>
         </div>
       ) : error ? (
-        <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+        <div className="d-flex justify-content-center align-items-center vh-100">
           <Alert variant="danger">{error}</Alert>
         </div>
       ) : userData ? (
@@ -266,14 +304,7 @@ const handleDetailsButton = (adId) => {
             <Navbar
               expand="lg"
               variant="light"
-              className="shadow-sm mx-auto px-3"
-              style={{
-                backgroundColor: 'rgba(247, 246, 253, 0.85)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                borderRadius: '16px',
-                border: '1px solid rgba(255, 255, 255, 0.6)'
-              }}
+              className="shadow-sm mx-auto px-3 bg-white bg-opacity-75 backdrop-blur rounded-4 border border-light-subtle"
             >
               <Container fluid>
                 <Navbar.Brand as={Link} to="/" className="d-flex align-items-center gap-2">
@@ -286,17 +317,17 @@ const handleDetailsButton = (adId) => {
                 <Navbar.Toggle aria-controls="main-navbar" />
                 <Navbar.Collapse id="main-navbar">
                   <Nav
-                    className="mx-auto my-2 my-lg-0 p-1"
-                    style={{ backgroundColor: 'rgba(236, 234, 254, 0.7)', borderRadius: 10, gap: 2 }}
+                    className="mx-auto my-2 my-lg-0 p-1 bg-secondary-subtle rounded-3"
+                    style={{ gap: 2 }}
                   >
                     {usertype === 'ADVERTISER' && (
                       <Nav.Link
                         active={activeTab === "ads"}
                         onClick={() => setActiveTab("ads")}
-                        className="d-flex align-items-center px-3 py-2"
+                        className="d-flex align-items-center px-3 py-2 rounded-2"
                         style={activeTab === "ads"
-                          ? { backgroundColor: '#fff', color: '#3C3489', fontWeight: 600, borderRadius: 8, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
-                          : { color: '#666', borderRadius: 8 }}
+                          ? { backgroundColor: '#fff', color: '#534AB7', fontWeight: 600, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
+                          : { color: '#64748B' }}
                       >
                         <BsMegaphone className="me-2" size={14} /> Advertisements
                       </Nav.Link>
@@ -308,10 +339,10 @@ const handleDetailsButton = (adId) => {
                           setSelectedAdForStats(null);
                           setActiveTab("stats");
                         }}
-                        className="d-flex align-items-center px-3 py-2"
+                        className="d-flex align-items-center px-3 py-2 rounded-2"
                         style={activeTab === "stats"
-                          ? { backgroundColor: '#fff', color: '#3C3489', fontWeight: 600, borderRadius: 8, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
-                          : { color: '#666', borderRadius: 8 }}
+                          ? { backgroundColor: '#fff', color: '#534AB7', fontWeight: 600, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
+                          : { color: '#64748B' }}
                       >
                         <BsBarChart className="me-2" size={14} /> Statistics
                       </Nav.Link>
@@ -320,10 +351,10 @@ const handleDetailsButton = (adId) => {
                       <Nav.Link
                         active={activeTab === "apps"}
                         onClick={() => setActiveTab("apps")}
-                        className="d-flex align-items-center px-3 py-2"
+                        className="d-flex align-items-center px-3 py-2 rounded-2"
                         style={activeTab === "apps"
-                          ? { backgroundColor: '#fff', color: '#3C3489', fontWeight: 600, borderRadius: 8, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
-                          : { color: '#666', borderRadius: 8 }}
+                          ? { backgroundColor: '#fff', color: '#534AB7', fontWeight: 600, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }
+                          : { color: '#64748B' }}
                       >
                         <BsGrid className="me-2" size={14} /> My Apps
                       </Nav.Link>
@@ -333,8 +364,8 @@ const handleDetailsButton = (adId) => {
                     {usertype === 'ADVERTISER' && (
                       <Button
                         size="sm"
-                        className="d-flex align-items-center fw-semibold"
-                        style={{ backgroundColor: '#F59E0B', border: 'none', borderRadius: 8 }}
+                        className="d-flex align-items-center fw-semibold text-white border-0 rounded-2"
+                        style={{ backgroundColor: '#F59E0B' }}
                         onClick={handleNewAdButton}
                       >
                         <BsPlusCircle className="me-2" /> Create Ad
@@ -349,16 +380,14 @@ const handleDetailsButton = (adId) => {
                     >
                       <button
                         type="button"
-                        className="btn p-0 border-0 d-flex align-items-center justify-content-center"
-                        style={{ outline: 'none' }}
+                        className="btn p-0 border-0 d-flex align-items-center justify-content-center shadow-none"
                       >
                         <span
                           title={userData.username}
-                          className="d-flex align-items-center justify-content-center fw-semibold"
+                          className="d-flex align-items-center justify-content-center fw-semibold rounded-circle"
                           style={{
                             width: 36,
                             height: 36,
-                            borderRadius: '50%',
                             backgroundColor: '#EEEDFE',
                             color: '#3C3489',
                             fontSize: 13,
@@ -379,140 +408,184 @@ const handleDetailsButton = (adId) => {
           <Container className="py-4 flex-grow-1">
             {activeTab === "ads" && (
               <>
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                  <h4>Your Advertisements</h4>
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h4 className="fw-bold mb-0 text-dark">Your Advertisements</h4>
                 </div>
-           {/* Ultra-Compact Pill Metric Filters - always visible */}
-                  <Row className="mb-4 g-4">
-                    {/* Ads Card */}
-                    <Col xs="auto">
-                      <Card
-                        role="button"
-                        onClick={() => setStatusFilter("all")}
-                        className="border-0 shadow-sm rounded-pill"
-                        style={{
-                          outline: statusFilter === "all" ? '2px solid #534AB7' : 'none',
-                          backgroundColor: '#ffffff'
-                        }}
-                      >
-                        <Card.Body className="py-1 px-3 d-flex align-items-center gap-2">
-                          <span className="text-muted small fw-medium text-nowrap">Ads</span>
-                          <span className="fw-bold">{totalAdsCount}</span>
-                        </Card.Body>
-                      </Card>
-                    </Col>
 
-                    {/* Active Ads Card */}
-                    <Col xs="auto">
-                      <Card
-                        role="button"
-                        onClick={() => setStatusFilter("active")}
-                        className="border-0 shadow-sm rounded-pill"
-                        style={{
-                          outline: statusFilter === "active" ? '2px solid #2e7d32' : 'none',
-                          backgroundColor: '#ffffff'
-                        }}
-                      >
-                        <Card.Body className="py-1 px-3 d-flex align-items-center gap-2">
-                          <span className="text-muted small fw-medium text-nowrap">Active Ads</span>
-                          <span className="fw-bold">{activeAdsCount}</span>
-                        </Card.Body>
-                      </Card>
-                    </Col>
-
-                    {/* Inactive Ads Card */}
-                    <Col xs="auto">
-                      <Card
-                        role="button"
-                        onClick={() => setStatusFilter("inactive")}
-                        className="border-0 shadow-sm rounded-pill"
-                        style={{
-                          outline: statusFilter === "inactive" ? '2px solid #c62828' : 'none',
-                          backgroundColor: '#ffffff'
-                        }}
-                      >
-                        <Card.Body className="py-1 px-3 d-flex align-items-center gap-2">
-                          <span className="text-muted small fw-medium text-nowrap">Inactive Ads</span>
-                          <span className="fw-bold">{inactiveAdsCount}</span>
-                        </Card.Body>
-                      </Card>
-                    </Col>
-
-                    {/* Expired Ads Card */}
-                    <Col xs="auto">
-                      <Card
-                        role="button"
-                        onClick={() => setStatusFilter("expired")}
-                        className="border-0 shadow-sm rounded-pill"
-                        style={{
-                          outline: statusFilter === "expired" ? '2px solid #c62828' : 'none',
-                          backgroundColor: '#ffffff'
-                        }}
-                      >
-                        <Card.Body className="py-1 px-3 d-flex align-items-center gap-2">
-                          <span className="text-muted small fw-medium text-nowrap">Expired Ads</span>
-                          <span className="fw-bold">{expiredAdsCount}</span>
-                        </Card.Body>
-                      </Card>
-                    </Col>
-                  </Row>       
-
-                {/* Search Bar + Status Filters + Sort */}
-                <div className="d-flex flex-wrap gap-3 align-items-center mb-4 mt-4">
-                  <div style={{ position: 'relative', minWidth: 260, flex: '1 1 260px', maxWidth: 360 }}>
+                {/* Search Bar + Integrated Pill Filters + Sort Container */}
+                <div className="p-3 mb-4 rounded-3 border bg-white d-flex flex-wrap gap-3 align-items-center shadow-sm border-light-subtle">
+                  {/* Search Bar */}
+                  <div className="position-relative flex-grow-1" style={{ minWidth: 260, maxWidth: 360 }}>
                     <BsSearch
-                      style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#999' }}
+                      className="position-absolute top-50 translate-middle-y text-secondary"
+                      style={{ left: 12 }}
                     />
                     <Form.Control
                       type="text"
                       placeholder="Search ads by title or keyword..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      style={{ paddingLeft: 36, borderRadius: 8 }}
+                      className="ps-5 rounded-2 shadow-none border-secondary-subtle"
                     />
                   </div>
 
-                  <ButtonGroup>
-                    <Button
-                      size="sm"
-                      variant={statusFilter === "all" ? "dark" : "outline-secondary"}
-                      style={statusFilter === "all" ? { backgroundColor: '#534AB7', borderColor: '#534AB7' } : {}}
-                      onClick={() => setStatusFilter("all")}
-                    >
-                      All ({totalAdsCount})
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={statusFilter === "active" ? "success" : "outline-secondary"}
-                      onClick={() => setStatusFilter("active")}
-                    >
-                      Active ({activeAdsCount})
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={statusFilter === "inactive" ? "secondary" : "outline-secondary"}
-                      onClick={() => setStatusFilter("inactive")}
-                    >
-                      Inactive ({inactiveAdsCount})
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={statusFilter === "expired" ? "danger" : "outline-secondary"}
-                      onClick={() => setStatusFilter("expired")}
-                    >
-                      Expired ({expiredAdsCount})
-                    </Button>
-                  </ButtonGroup>
+                  {/* Pill Metric Filters (Inline) */}
+                  <div className="d-flex flex-wrap gap-2 align-items-center">
+                    {/* Ads Card */}
+                    <div className="position-relative d-inline-block overflow-hidden rounded-pill">
+                      {statusFilter === "all" && (
+                        <div
+                          key={`asteroid-all-${statusFilter}`}
+                          className="position-absolute bottom-0 rounded-pill pointer-event-none bg-primary"
+                          style={{
+                            left: 0,
+                            height: '3px',
+                            width: '45%',
+                            animation: 'asteroidPulseOnce 0.35s ease-out 1, asteroidSweep 1.2s cubic-bezier(0.25, 1, 0.5, 1) infinite',
+                            zIndex: 1
+                          }}
+                        />
+                      )}
+                      <Card
+                        role="button"
+                        onClick={() => setStatusFilter("all")}
+                        className={`border-0 shadow-sm rounded-pill position-relative ${
+                          statusFilter === "all" ? "bg-secondary-subtle" : "bg-white"
+                        }`}
+                        style={{
+                          outline: statusFilter === "all" ? '2px solid #534AB7' : '1px solid #E2E8F0',
+                          transform: statusFilter === "all" ? 'scale(1.03)' : 'scale(1)',
+                          transition: 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                          cursor: 'pointer',
+                          zIndex: 2
+                        }}
+                      >
+                        <Card.Body className="py-1 px-3 d-flex align-items-center gap-2">
+                          <span className="text-secondary small fw-medium text-nowrap">Ads</span>
+                          <span className="fw-bold">{totalAdsCount}</span>
+                        </Card.Body>
+                      </Card>
+                    </div>
 
+                    {/* Active Ads Card */}
+                    <div className="position-relative d-inline-block overflow-hidden rounded-pill">
+                      {statusFilter === "active" && (
+                        <div
+                          key={`asteroid-active-${statusFilter}`}
+                          className="position-absolute bottom-0 rounded-pill pointer-event-none bg-success"
+                          style={{
+                            left: 0,
+                            height: '3px',
+                            width: '45%',
+                            animation: 'asteroidPulseOnce 0.35s ease-out 1, asteroidSweep 1.2s cubic-bezier(0.25, 1, 0.5, 1) infinite',
+                            zIndex: 1
+                          }}
+                        />
+                      )}
+                      <Card
+                        role="button"
+                        onClick={() => setStatusFilter("active")}
+                        className={`border-0 shadow-sm rounded-pill position-relative ${
+                          statusFilter === "active" ? "bg-success-subtle" : "bg-white"
+                        }`}
+                        style={{
+                          outline: statusFilter === "active" ? '2px solid #2E7D32' : '1px solid #E2E8F0',
+                          transform: statusFilter === "active" ? 'scale(1.03)' : 'scale(1)',
+                          transition: 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                          cursor: 'pointer',
+                          zIndex: 2
+                        }}
+                      >
+                        <Card.Body className="py-1 px-3 d-flex align-items-center gap-2">
+                          <span className="text-secondary small fw-medium text-nowrap">Active Ads</span>
+                          <span className="fw-bold text-success">{activeAdsCount}</span>
+                        </Card.Body>
+                      </Card>
+                    </div>
+
+                    {/* Inactive Ads Card */}
+                    <div className="position-relative d-inline-block overflow-hidden rounded-pill">
+                      {statusFilter === "inactive" && (
+                        <div
+                          key={`asteroid-inactive-${statusFilter}`}
+                          className="position-absolute bottom-0 rounded-pill pointer-event-none bg-secondary"
+                          style={{
+                            left: 0,
+                            height: '3px',
+                            width: '45%',
+                            animation: 'asteroidPulseOnce 0.35s ease-out 1, asteroidSweep 1.2s cubic-bezier(0.25, 1, 0.5, 1) infinite',
+                            zIndex: 1
+                          }}
+                        />
+                      )}
+                      <Card
+                        role="button"
+                        onClick={() => setStatusFilter("inactive")}
+                        className={`border-0 shadow-sm rounded-pill position-relative ${
+                          statusFilter === "inactive" ? "bg-light" : "bg-white"
+                        }`}
+                        style={{
+                          outline: statusFilter === "inactive" ? '2px solid #64748B' : '1px solid #E2E8F0',
+                          transform: statusFilter === "inactive" ? 'scale(1.03)' : 'scale(1)',
+                          transition: 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                          cursor: 'pointer',
+                          zIndex: 2
+                        }}
+                      >
+                        <Card.Body className="py-1 px-3 d-flex align-items-center gap-2">
+                          <span className="text-secondary small fw-medium text-nowrap">Inactive Ads</span>
+                          <span className="fw-bold text-secondary">{inactiveAdsCount}</span>
+                        </Card.Body>
+                      </Card>
+                    </div>
+
+                    {/* Expired Ads Card */}
+                    <div className="position-relative d-inline-block overflow-hidden rounded-pill">
+                      {statusFilter === "expired" && (
+                        <div
+                          key={`asteroid-expired-${statusFilter}`}
+                          className="position-absolute bottom-0 rounded-pill pointer-event-none bg-danger"
+                          style={{
+                            left: 0,
+                            height: '3px',
+                            width: '45%',
+                            animation: 'asteroidPulseOnce 0.35s ease-out 1, asteroidSweep 1.2s cubic-bezier(0.25, 1, 0.5, 1) infinite',
+                            zIndex: 1
+                          }}
+                        />
+                      )}
+                      <Card
+                        role="button"
+                        onClick={() => setStatusFilter("expired")}
+                        className={`border-0 shadow-sm rounded-pill position-relative ${
+                          statusFilter === "expired" ? "bg-danger-subtle" : "bg-white"
+                        }`}
+                        style={{
+                          outline: statusFilter === "expired" ? '2px solid #C62828' : '1px solid #E2E8F0',
+                          transform: statusFilter === "expired" ? 'scale(1.03)' : 'scale(1)',
+                          transition: 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                          cursor: 'pointer',
+                          zIndex: 2
+                        }}
+                      >
+                        <Card.Body className="py-1 px-3 d-flex align-items-center gap-2">
+                          <span className="text-secondary small fw-medium text-nowrap">Expired Ads</span>
+                          <span className="fw-bold text-danger">{expiredAdsCount}</span>
+                        </Card.Body>
+                      </Card>
+                    </div>
+                  </div>
+
+                  {/* Sort Dropdown */}
                   <Dropdown className="ms-auto">
                     <Dropdown.Toggle
                       size="sm"
                       variant="outline-secondary"
-                      className="d-flex align-items-center"
+                      className="d-flex align-items-center rounded-2 border-secondary-subtle"
                     >
                       <BsSortDown className="me-2" /> {sortLabels[sortBy]}
                     </Dropdown.Toggle>
-                    <Dropdown.Menu align="end">
+                    <Dropdown.Menu align="end" className="shadow border-light-subtle rounded-3">
                       <Dropdown.Item active={sortBy === "date_new"} onClick={() => setSortBy("date_new")}>
                         Date Created (Newest First)
                       </Dropdown.Item>
@@ -527,126 +600,102 @@ const handleDetailsButton = (adId) => {
                       </Dropdown.Item>
                     </Dropdown.Menu>
                   </Dropdown>
-                </div>
+                </div>   
 
                 {userData.ads && userData.ads.length > 0 ? (
                   filteredAds.length > 0 ? (
                     <Row xs={1} md={2} lg={3} className="g-4">
                       {filteredAds.map(ad => (
                         <Col key={ad.id}>
-  <Card className="h-100 glass-card border-0">
-    {/* Dynamic Badge */}
-    <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}>
-      {(Number(ad.is_expired) === 1 || ad.status === 'expired') ? (
-        <Badge pill bg="danger" style={{ padding: '6px 12px' }}>EXPIRED</Badge>
-      ) : Number(ad.isactive) === 1 ? (
-        <Badge
-          pill
-          style={{
-            backgroundColor: 'rgba(22, 163, 74, 0.85)',
-            backdropFilter: 'blur(4px)',
-            color: '#fff',
-            padding: '6px 12px'
-          }}
-        >
-          ✓ Active
-        </Badge>
-      ) : (
-        <Badge
-          pill
-          style={{
-            backgroundColor: 'rgba(100, 116, 139, 0.85)',
-            backdropFilter: 'blur(4px)',
-            color: '#fff',
-            padding: '6px 12px'
-          }}
-        >
-          Inactive
-        </Badge>
-      )}
-    </div>
+                          <Card className="h-100 bg-white border-0 shadow-sm rounded-3">
+                            {/* Dynamic Badge */}
+                            <div className="position-absolute top-0 end-0 m-3" style={{ zIndex: 10 }}>
+                              {(Number(ad.is_expired) === 1 || ad.status === 'expired') ? (
+                                <Badge pill bg="danger" className="px-3 py-2">EXPIRED</Badge>
+                              ) : Number(ad.isactive) === 1 ? (
+                                <Badge pill bg="success" className="px-3 py-2">✓ Active</Badge>
+                              ) : (
+                                <Badge pill bg="secondary" className="px-3 py-2">Inactive</Badge>
+                              )}
+                            </div>
 
-    {/* Ad Image Container with Frosted Text Overlay */}
-    <div className="glass-img-container">
-      <img src={ad.ad_url} alt={ad.title} className="glass-img" />
+                            {/* Ad Image Container */}
+                            <div className="position-relative overflow-hidden">
+                              <img src={ad.ad_url} alt={ad.title} className="card-img-top object-fit-cover" style={{ height: '180px' }} />
 
-      {/* Frosted Glass Overlay Pane */}
-      <div className="glass-overlay">
-        <h5 className="fw-bold mb-1 text-dark">{ad.title}</h5>
-        <p className="text-secondary small mb-2" style={{ lineHeight: '1.3' }}>
-          {ad.description.length > 80
-            ? `${ad.description.substring(0, 80)}...`
-            : ad.description}
-        </p>
+                              <div className="p-3 bg-white bg-opacity-75 backdrop-blur border-top">
+                                <h5 className="fw-bold mb-1 text-dark">{ad.title}</h5>
+                                <p className="text-secondary small mb-2 text-truncate">
+                                  {ad.description}
+                                </p>
 
-        <div className="d-flex gap-3 pt-1 border-top border-white-50">
-          <span className="small text-muted d-flex align-items-center">
-            <BsEye className="me-1 text-primary" /> {ad.views ?? 0} views
-          </span>
-          <span className="small text-muted d-flex align-items-center">
-            <BsCursor className="me-1 text-primary" /> {ad.clicks ?? 0} clicks
-          </span>
-        </div>
-      </div>
-    </div>
+                                <div className="d-flex gap-3 pt-1 border-top border-secondary-subtle">
+                                  <span className="small text-muted d-flex align-items-center">
+                                    <BsEye className="me-1 text-primary" /> {ad.views ?? 0} views
+                                  </span>
+                                  <span className="small text-muted d-flex align-items-center">
+                                    <BsCursor className="me-1 text-primary" /> {ad.clicks ?? 0} clicks
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
 
-    {/* Card Action Footer */}
-    <Card.Footer className="bg-white border-0 p-3">
-      {(Number(ad.is_expired) === 1 || ad.status === 'expired') ? (
-        <Button
-          variant="outline-dark"
-          size="sm"
-          className="w-100 fw-semibold rounded-2 py-2"
-          onClick={() => {
-            setSelectedExpiredAd(ad);
-            setShowExpiredAuditModal(true);
-          }}
-        >
-          Full History Details
-        </Button>
-      ) : (
-        <div className="d-flex justify-content-between align-items-center">
-          <div className="d-flex gap-2">
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              id={ad.id}
-              onClick={handleEditButton}
-              className="d-flex align-items-center rounded-2 px-3"
-            >
-              <BsPencil className="me-1" /> Edit
-            </Button>
-            <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={() => handleDetailsButton(ad.id)}
-              className="d-flex align-items-center rounded-2 px-3"
-            >
-              <BsBarChart className="me-1" /> Analytics
-            </Button>
-          </div>
+                            {/* Card Action Footer */}
+                            <Card.Footer className="bg-white border-0 p-3 rounded-bottom-3">
+                              {(Number(ad.is_expired) === 1 || ad.status === 'expired') ? (
+                                <Button
+                                  variant="outline-dark"
+                                  size="sm"
+                                  className="w-100 fw-semibold rounded-2 py-2"
+                                  onClick={() => {
+                                    setSelectedExpiredAd(ad);
+                                    setShowExpiredAuditModal(true);
+                                  }}
+                                >
+                                  Full History Details
+                                </Button>
+                              ) : (
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <div className="d-flex gap-2">
+                                    <Button
+                                      variant="outline-secondary"
+                                      size="sm"
+                                      id={ad.id}
+                                      onClick={handleEditButton}
+                                      className="d-flex align-items-center rounded-2 px-3"
+                                    >
+                                      <BsPencil className="me-1" /> Edit
+                                    </Button>
+                                    <Button
+                                      variant="outline-primary"
+                                      size="sm"
+                                      onClick={() => handleDetailsButton(ad.id)}
+                                      className="d-flex align-items-center rounded-2 px-3"
+                                    >
+                                      <BsBarChart className="me-1" /> Analytics
+                                    </Button>
+                                  </div>
 
-          {Number(ad.isactive) !== 1 && (
-            <Button
-              variant="success"
-              size="sm"
-              id={ad.id}
-              onClick={handleActivateButton}
-              className="rounded-2 px-3 fw-medium"
-              style={{ backgroundColor: '#10B981', border: 'none' }}
-            >
-              Activate
-            </Button>
-          )}
-        </div>
-      )}
-    </Card.Footer>
-  </Card>
-</Col>
+                                  {Number(ad.isactive) !== 1 && (
+                                    <Button
+                                      variant="success"
+                                      size="sm"
+                                      id={ad.id}
+                                      onClick={handleActivateButton}
+                                      className="rounded-2 px-3 fw-medium"
+                                    >
+                                      Activate
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                            </Card.Footer>
+                          </Card>
+                        </Col>
                       ))}
                     </Row>
                   ) : (
-                    <Card className="text-center p-5 shadow-sm">
+                    <Card className="text-center p-5 shadow-sm border-0 rounded-3">
                       <Card.Body>
                         <h5>No ads match your filters</h5>
                         <p className="text-muted">Try a different search term or change the status filter.</p>
@@ -661,7 +710,7 @@ const handleDetailsButton = (adId) => {
                     </Card>
                   )
                 ) : (
-                  <Card className="text-center p-5 shadow-sm">
+                  <Card className="text-center p-5 shadow-sm border-0 rounded-3">
                     <Card.Body>
                       <h5>You don't have any ads yet</h5>
                       <p className="text-muted">Create your first ad to start promoting your business</p>
@@ -677,36 +726,36 @@ const handleDetailsButton = (adId) => {
                 )}
               </>
             )}
-{/* selectedAdForStats to the Statistics Component
-Update the activeTab === "stats" section */}
-                    {activeTab === "stats" && (
-                    <>
-                      <div className="d-flex justify-content-between align-items-center mb-4">
-                        <h4>Your Ad Statistics</h4>
-                        {selectedAdForStats && (
-                          <Button
-                            variant="outline-secondary"
-                            size="sm"
-                            onClick={() => setSelectedAdForStats(null)}
-                          >
-                            Clear Selection (Show All)
-                          </Button>
-                        )}
-                      </div>
-                      <Statistics adsData={stats} selectedAdId={selectedAdForStats} />
-                    </>
+
+            {/* Statistics Component */}
+            {activeTab === "stats" && (
+              <>
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <h4 className="fw-bold text-dark">Your Ad Statistics</h4>
+                  {selectedAdForStats && (
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      onClick={() => setSelectedAdForStats(null)}
+                    >
+                      Clear Selection (Show All)
+                    </Button>
                   )}
+                </div>
+                <Statistics adsData={stats} selectedAdId={selectedAdForStats} />
+              </>
+            )}
 
             {activeTab === "profile" && (
               <>
-                <h4 className="mb-4">Your Profile</h4>
+                <h4 className="mb-4 fw-bold text-dark">Your Profile</h4>
                 <Profile user={user} userData={userData} onUpdate={fetchData} />
               </>
             )}
 
             {activeTab === "apps" && (
               <>
-                <h4 className="mb-4">My Publisher Apps</h4>
+                <h4 className="mb-4 fw-bold text-dark">My Publisher Apps</h4>
                 <PublisherApps />
               </>
             )}
@@ -766,8 +815,7 @@ Update the activeTab === "stats" section */}
               <div className="modal-footer border-0 pt-0">
                 <Button
                   variant="success"
-                  className="w-100 py-2 fw-semibold"
-                  style={{ backgroundColor: '#10B981', border: 'none' }}
+                  className="w-100 py-2 fw-semibold border-0"
                   onClick={() => {
                     setShowExpiredAuditModal(false);
                     setReLaunchForm({
@@ -806,6 +854,7 @@ Update the activeTab === "stats" section */}
                   <Button
                     size="sm"
                     variant="outline-primary"
+                    className="py-0 px-2"
                     style={{ fontSize: 11 }}
                     onClick={() => setReLaunchForm(prev => ({ ...prev, isEditingCreative: !prev.isEditingCreative }))}
                   >
@@ -873,8 +922,7 @@ Update the activeTab === "stats" section */}
             <div className="modal-footer border-0 pt-0">
               <Button
                 variant="success"
-                className="w-100 py-2 fw-semibold"
-                style={{ backgroundColor: '#10B981', border: 'none' }}
+                className="w-100 py-2 fw-semibold border-0"
                 onClick={() => {
                   setShowReLaunchModal(false);
                   setToastMessage("New campaign version successfully launched!");
