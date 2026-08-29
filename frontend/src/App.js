@@ -12,14 +12,12 @@ import api from "./api.js";
 
 function App() { 
 	const [user, setUser] = useState(null);
-	
-	const isLoggedIn = () => {
-		const token = localStorage.getItem("token");
-		return !!token;
-	};
+	const [loggedIn, setLoggedIn] = useState(!!localStorage.getItem("token"));
+
+	const isLoggedIn = () => loggedIn;
 
 	const PrivateRoute = ({children}) => {
-		return isLoggedIn() ? children : <Navigate to="/" />;
+		return isLoggedIn() ? children : <Navigate to="/login" />;
 	};
 	
 	useEffect(() => {
@@ -43,7 +41,7 @@ function App() {
 				<Routes>
 					
 					<Route path="/" element={<Home isLoggedIn={isLoggedIn}/>} />
-					<Route path="/login" element={!isLoggedIn() ? <Login setUser={setUser}/> : <Navigate to="/dashboard" />} />
+					<Route path="/login" element={!isLoggedIn() ? <Login setUser={setUser} setLoggedIn={setLoggedIn}/> : <Navigate to="/dashboard" />} />
 					<Route path="/register" element={!isLoggedIn() ? <Register/> : <Navigate to="/dashboard" />} />
 					<Route path="/register/developer" element={!isLoggedIn() ? <RegisterDeveloper/> : <Navigate to="/dashboard" />} />
 					
@@ -51,7 +49,7 @@ function App() {
 						path="/dashboard"
 						element={
 							<PrivateRoute>
-								<Dashboard user={user} />
+								<Dashboard user={user} setLoggedIn={setLoggedIn} />
 							</PrivateRoute>
 						}
 					/>

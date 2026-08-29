@@ -13,7 +13,7 @@ import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import "../../App.css";
 
-const Login = ({ setUser }) => {
+const Login = ({ setUser , setLoggedIn}) => {
   const [signindata, setSignindata] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -38,6 +38,7 @@ const Login = ({ setUser }) => {
         username: response.data.username,
         usertype: response.data.usertype,
       });
+      if (setLoggedIn) setLoggedIn(true);
       navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || "Login Failed! Username/Password Incorrect.");

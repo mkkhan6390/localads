@@ -9,7 +9,7 @@ import Profile from "./profile";
 import PublisherApps from "./publisherApps";
 import { BsPlusCircle, BsBoxArrowRight, BsPencil, BsEye, BsCursor, BsMegaphone, BsBarChart, BsPerson, BsGrid, BsSearch, BsSortDown } from "react-icons/bs";
 
-const Dashboard = ({ user }) => {
+const Dashboard = ({ user,setLoggedIn }) => {
   const [selectedAdForStats, setSelectedAdForStats] = useState(null);
   const [userData, setUserData] = useState(null);
   const [showNewAdModal, setShowNewAdModal] = useState(false);
@@ -67,7 +67,8 @@ const Dashboard = ({ user }) => {
         localStorage.removeItem("userid");
         localStorage.removeItem("username");
         localStorage.removeItem("usertype");
-        navigate("/login");
+        if (setLoggedIn) setLoggedIn(false);
+        navigate("/");
       } else {
         // Server/network error — show error but keep session
         setError("Failed to load dashboard data. Please try again.");
@@ -105,7 +106,8 @@ const Dashboard = ({ user }) => {
     localStorage.removeItem("userid");
     localStorage.removeItem("username");
     localStorage.removeItem("usertype");
-    navigate("/login");
+    if (setLoggedIn) setLoggedIn(false);
+    navigate("/");
   };
 
   const handleActivateButton = (event) => {
