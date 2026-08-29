@@ -19,7 +19,7 @@ const Dashboard = ({ user }) => {
   const [error, setError] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
-  const [activeTab, setActiveTab] = useState("ads");
+  const [activeTab, setActiveTab] = useState((user?.usertype || localStorage.getItem("usertype")) === "DEVELOPER" ? "apps":"ads");
   const [stats, setStats] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all"); // all | active | inactive | expired
