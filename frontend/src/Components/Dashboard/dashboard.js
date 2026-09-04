@@ -7,7 +7,7 @@ import ActivateAdModal from "./ActivateAd";
 import Statistics from "./statistics";
 import Profile from "./profile";
 import PublisherApps from "./publisherApps";
-import { BsPlusCircle, BsBoxArrowRight, BsPencil, BsEye, BsCursor, BsMegaphone, BsBarChart, BsPerson, BsGrid, BsSearch, BsSortDown } from "react-icons/bs";
+import { BsPlusCircle, BsBoxArrowRight, BsPencil, BsEye, BsCursor, BsMegaphone, BsBarChart, BsPerson, BsGrid, BsSearch, BsSortDown, BsChevronLeft, BsChevronRight } from "react-icons/bs";
 
 const Dashboard = ({ user,setLoggedIn }) => {
   const [selectedAdForStats, setSelectedAdForStats] = useState(null);
@@ -24,6 +24,10 @@ const Dashboard = ({ user,setLoggedIn }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all"); // all | active | inactive | expired
   const [sortBy, setSortBy] = useState("date_new");
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const adsPerPage = 6;
 
   // New States for Expired Audit & Re-Launch Modals
   const [showExpiredAuditModal, setShowExpiredAuditModal] = useState(false);
@@ -95,6 +99,11 @@ const Dashboard = ({ user,setLoggedIn }) => {
 
     fetchStats();
   }, [navigate]);
+
+  // Reset page when filters, query or sort change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, sortBy]);
 
   const handleNewAdButton = () => {
     setSelectedAd(-1);
@@ -174,6 +183,33 @@ const handleDetailsButton = (adId) => {
   };
 
   const filteredAds = getFilteredAndSortedAds();
+
+  // Pagination Calculation
+  const totalPages = Math.ceil(filteredAds.length / adsPerPage);
+  const indexOfLastAd = currentPage * adsPerPage;
+  const indexOfFirstAd = indexOfLastAd - adsPerPage;
+  const currentAds = filteredAds.slice(indexOfFirstAd, indexOfLastAd);
+
+  // Helper function to build page numbers array with ellipses (...)
+  const getPaginationRange = () => {
+    const delta = 1;
+    const range = [];
+    for (let i = 1; i <= totalPages; i++) {
+      if (
+        i === 1 ||
+        i === totalPages ||
+        (i >= currentPage - delta && i <= currentPage + delta)
+      ) {
+        range.push(i);
+      } else if (
+        (i === currentPage - delta - 1 && i > 1) ||
+        (i === currentPage + delta + 1 && i < totalPages)
+      ) {
+        range.push("...");
+      }
+    }
+    return range.filter((item, index, arr) => arr.indexOf(item) === index);
+  };
 
   const sortLabels = {
     date_new: "Date Created (Newest First)",
@@ -606,96 +642,175 @@ const handleDetailsButton = (adId) => {
 
                 {userData.ads && userData.ads.length > 0 ? (
                   filteredAds.length > 0 ? (
-                    <Row xs={1} md={2} lg={3} className="g-4">
-                      {filteredAds.map(ad => (
-                        <Col key={ad.id}>
-                          <Card className="h-100 bg-white border-0 shadow-sm rounded-3">
-                            {/* Dynamic Badge */}
-                            <div className="position-absolute top-0 end-0 m-3" style={{ zIndex: 10 }}>
-                              {(Number(ad.is_expired) === 1 || ad.status === 'expired') ? (
-                                <Badge pill bg="danger" className="px-3 py-2">EXPIRED</Badge>
-                              ) : Number(ad.isactive) === 1 ? (
-                                <Badge pill bg="success" className="px-3 py-2">✓ Active</Badge>
-                              ) : (
-                                <Badge pill bg="secondary" className="px-3 py-2">Inactive</Badge>
-                              )}
-                            </div>
+                    <>
+                      <Row xs={1} md={2} lg={3} className="g-4">
+                        {currentAds.map(ad => (
+                          <Col key={ad.id}>
+                            <Card className="h-100 bg-white border-0 shadow-sm rounded-3">
+                              {/* Dynamic Badge */}
+                              <div className="position-absolute top-0 end-0 m-3" style={{ zIndex: 10 }}>
+                                {(Number(ad.is_expired) === 1 || ad.status === 'expired') ? (
+                                  <Badge pill bg="danger" className="px-3 py-2">EXPIRED</Badge>
+                                ) : Number(ad.isactive) === 1 ? (
+                                  <Badge pill bg="success" className="px-3 py-2">✓ Active</Badge>
+                                ) : (
+                                  <Badge pill bg="secondary" className="px-3 py-2">Inactive</Badge>
+                                )}
+                              </div>
 
-                            {/* Ad Image Container */}
-                            <div className="position-relative overflow-hidden">
-                              <img src={ad.ad_url} alt={ad.title} className="card-img-top object-fit-cover" style={{ height: '180px' }} />
+                              {/* Ad Image Container */}
+                              <div className="position-relative overflow-hidden">
+                                <img src={ad.ad_url} alt={ad.title} className="card-img-top object-fit-cover" style={{ height: '180px' }} />
 
-                              <div className="p-3 bg-white bg-opacity-75 backdrop-blur border-top">
-                                <h5 className="fw-bold mb-1 text-dark">{ad.title}</h5>
-                                <p className="text-secondary small mb-2 text-truncate">
-                                  {ad.description}
-                                </p>
+                                <div className="p-3 bg-white bg-opacity-75 backdrop-blur border-top">
+                                  <h5 className="fw-bold mb-1 text-dark">{ad.title}</h5>
+                                  <p className="text-secondary small mb-2 text-truncate">
+                                    {ad.description}
+                                  </p>
 
-                                <div className="d-flex gap-3 pt-1 border-top border-secondary-subtle">
-                                  <span className="small text-muted d-flex align-items-center">
-                                    <BsEye className="me-1 text-primary" /> {ad.views ?? 0} views
-                                  </span>
-                                  <span className="small text-muted d-flex align-items-center">
-                                    <BsCursor className="me-1 text-primary" /> {ad.clicks ?? 0} clicks
-                                  </span>
+                                  <div className="d-flex gap-3 pt-1 border-top border-secondary-subtle">
+                                    <span className="small text-muted d-flex align-items-center">
+                                      <BsEye className="me-1 text-primary" /> {ad.views ?? 0} views
+                                    </span>
+                                    <span className="small text-muted d-flex align-items-center">
+                                      <BsCursor className="me-1 text-primary" /> {ad.clicks ?? 0} clicks
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
 
-                            {/* Card Action Footer */}
-                            <Card.Footer className="bg-white border-0 p-3 rounded-bottom-3">
-                              {(Number(ad.is_expired) === 1 || ad.status === 'expired') ? (
+                              {/* Card Action Footer */}
+                              <Card.Footer className="bg-white border-0 p-3 rounded-bottom-3">
+                                {(Number(ad.is_expired) === 1 || ad.status === 'expired') ? (
+                                  <Button
+                                    variant="outline-dark"
+                                    size="sm"
+                                    className="w-100 fw-semibold rounded-2 py-2"
+                                    onClick={() => {
+                                      setSelectedExpiredAd(ad);
+                                      setShowExpiredAuditModal(false);
+                                    }}
+                                  >
+                                    Full History Details
+                                  </Button>
+                                ) : (
+                                  <div className="d-flex justify-content-between align-items-center">
+                                    <div className="d-flex gap-2">
+                                      <Button
+                                        variant="outline-secondary"
+                                        size="sm"
+                                        id={ad.id}
+                                        onClick={handleEditButton}
+                                        className="d-flex align-items-center rounded-2 px-3"
+                                      >
+                                        <BsPencil className="me-1" /> Edit
+                                      </Button>
+                                      <Button
+                                        variant="outline-primary"
+                                        size="sm"
+                                        onClick={() => handleDetailsButton(ad.id)}
+                                        className="d-flex align-items-center rounded-2 px-3"
+                                      >
+                                        <BsBarChart className="me-1" /> Analytics
+                                      </Button>
+                                    </div>
+
+                                    {Number(ad.isactive) !== 1 && (
+                                      <Button
+                                        variant="success"
+                                        size="sm"
+                                        id={ad.id}
+                                        onClick={handleActivateButton}
+                                        className="rounded-2 px-3 fw-medium"
+                                      >
+                                        Activate
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
+                              </Card.Footer>
+                            </Card>
+                          </Col>
+                        ))}
+                      </Row>
+
+                      {/* Style 1: Fully Rounded Standard Pagination Container */}
+                      {totalPages > 1 && (
+                        <div className="d-flex justify-content-center align-items-center mt-5 mb-3">
+                          <div
+                            className="d-inline-flex align-items-center p-2 rounded-pill bg-white shadow-sm border border-light-subtle"
+                            style={{ gap: '6px' }}
+                          >
+                            {/* Previous Button */}
+                            <Button
+                              variant="light"
+                              disabled={currentPage === 1}
+                              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                              className="rounded-circle d-flex align-items-center justify-content-center p-0 border-0"
+                              style={{
+                                width: 40,
+                                height: 40,
+                                backgroundColor: currentPage === 1 ? '#f1f5f9' : '#0284c7',
+                                color: currentPage === 1 ? '#94a3b8' : '#ffffff',
+                                transition: 'all 0.2s ease'
+                              }}
+                            >
+                              <BsChevronLeft size={16} />
+                            </Button>
+
+                            {/* Page Numbers */}
+                            {getPaginationRange().map((page, idx) => {
+                              if (page === "...") {
+                                return (
+                                  <span
+                                    key={`ellipsis-${idx}`}
+                                    className="text-muted fw-bold px-2 d-flex align-items-center justify-content-center"
+                                    style={{ width: 32, userSelect: 'none' }}
+                                  >
+                                    ...
+                                  </span>
+                                );
+                              }
+
+                              const isSelected = page === currentPage;
+                              return (
                                 <Button
-                                  variant="outline-dark"
-                                  size="sm"
-                                  className="w-100 fw-semibold rounded-2 py-2"
-                                  onClick={() => {
-                                    setSelectedExpiredAd(ad);
-                                    setShowExpiredAuditModal(true);
+                                  key={`page-${page}`}
+                                  onClick={() => setCurrentPage(page)}
+                                  className="rounded-circle fw-bold d-flex align-items-center justify-content-center p-0 border-0"
+                                  style={{
+                                    width: 40,
+                                    height: 40,
+                                    backgroundColor: isSelected ? '#2563eb' : 'transparent',
+                                    color: isSelected ? '#ffffff' : '#334155',
+                                    transition: 'all 0.2s ease'
                                   }}
                                 >
-                                  Full History Details
+                                  {page}
                                 </Button>
-                              ) : (
-                                <div className="d-flex justify-content-between align-items-center">
-                                  <div className="d-flex gap-2">
-                                    <Button
-                                      variant="outline-secondary"
-                                      size="sm"
-                                      id={ad.id}
-                                      onClick={handleEditButton}
-                                      className="d-flex align-items-center rounded-2 px-3"
-                                    >
-                                      <BsPencil className="me-1" /> Edit
-                                    </Button>
-                                    <Button
-                                      variant="outline-primary"
-                                      size="sm"
-                                      onClick={() => handleDetailsButton(ad.id)}
-                                      className="d-flex align-items-center rounded-2 px-3"
-                                    >
-                                      <BsBarChart className="me-1" /> Analytics
-                                    </Button>
-                                  </div>
+                              );
+                            })}
 
-                                  {Number(ad.isactive) !== 1 && (
-                                    <Button
-                                      variant="success"
-                                      size="sm"
-                                      id={ad.id}
-                                      onClick={handleActivateButton}
-                                      className="rounded-2 px-3 fw-medium"
-                                    >
-                                      Activate
-                                    </Button>
-                                  )}
-                                </div>
-                              )}
-                            </Card.Footer>
-                          </Card>
-                        </Col>
-                      ))}
-                    </Row>
+                            {/* Next Button */}
+                            <Button
+                              variant="light"
+                              disabled={currentPage === totalPages}
+                              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                              className="rounded-circle d-flex align-items-center justify-content-center p-0 border-0"
+                              style={{
+                                width: 40,
+                                height: 40,
+                                backgroundColor: currentPage === totalPages ? '#f1f5f9' : '#0284c7',
+                                color: currentPage === totalPages ? '#94a3b8' : '#ffffff',
+                                transition: 'all 0.2s ease'
+                              }}
+                            >
+                              <BsChevronRight size={16} />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <Card className="text-center p-5 shadow-sm border-0 rounded-3">
                       <Card.Body>
