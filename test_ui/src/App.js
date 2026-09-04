@@ -1,59 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import './App.css';
 
 function App() {
-  // const [coords, setCoords] = useState(null); 
-
-  // useEffect(() => {
-  //   if (navigator.geolocation) {
-  //     navigator.geolocation.getCurrentPosition(
-  //       (position) => {
-  //         const { latitude, longitude } = position.coords;
-  //         console.log("User allowed location:", latitude, longitude);
-  //         setCoords({ latitude, longitude });
-  //       },
-  //       (error) => {
-  //         console.error("Geolocation error:", error); 
-  //       },
-  //       {
-  //         enableHighAccuracy: true,
-  //         timeout: 10000,
-  //         maximumAge: 0,
-  //       }
-  //     );
-  //   } else {
-  //     console.error("Geolocation not supported");
-  //   }
-  // }, []);
-
-  // useEffect(() => {
-  //   console.log(coords)
-  //   if (!coords) return;
-
-  //   // Build API URL with latitude & longitude
-  //   const script = document.createElement('script');
-  //   script.src = `http://localhost:5000/ad/getad?lat=${coords.latitude}&long=${coords.longitude}&username=mkhan6390&apikey=6147b71dad25c4fdc61c0fe32f37ece3&appid=915f89f1-84e1-11f0-bfe2-c85b7660b47d`;
-  //   script.async = true;
-  //   document.body.appendChild(script);
-  //   return () => {
-  //     document.body.removeChild(script);
-  //   };
-  // }, [coords]);
-
   useEffect(() => {
-    const adcontainer = document.getElementById('adcontainer');
-    if(adcontainer) return;
+    // The SDK creates a div with id="ad-container" (see backend/routes/sdk.js),
+    // so that's the id we need to check for, not "adcontainer".
+    const existingAd = document.getElementById('ad-container');
+    if (existingAd) return;
 
-    const script = document.createElement("script");
-    script.src = "http://localhost:5000/sdk";
+    const { REACT_APP_USERNAME, REACT_APP_APPID, REACT_APP_APIKEY, REACT_APP_ADTYPE } = process.env;
+    if (!REACT_APP_USERNAME || !REACT_APP_APPID || !REACT_APP_APIKEY) {
+      console.error(
+        'LocalAds: missing REACT_APP_USERNAME / REACT_APP_APPID / REACT_APP_APIKEY in .env — the SDK cannot authenticate without these.'
+      );
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'http://localhost:5000/sdk';
     script.async = true;
 
     // add custom attributes
-    script.setAttribute("username", "mkhan6390");
-    script.setAttribute("appid", "0c8e2b0e-84b9-11f0-bfe2-c85b7660b47d");
-    script.setAttribute("apikey", "$2a$10$pRDeD2axZz7Xj0oe3wbvROYsZAyUyk.b8lsY1XIpo8SnT8uOlcFqe");
-    script.setAttribute("adtype", "image");
-
+    script.setAttribute('username', REACT_APP_USERNAME);
+    script.setAttribute('appid', REACT_APP_APPID);
+    script.setAttribute('apikey', REACT_APP_APIKEY);
+    script.setAttribute('adtype', REACT_APP_ADTYPE || 'image');
+    // No hardcoded pincode: the SDK will ask for browser geolocation and
+    // resolve the pincode from lat/long instead. Make sure to allow the
+    // location permission prompt when the page loads.
     document.body.appendChild(script);
 
     return () => {
