@@ -136,7 +136,7 @@ export default function PublisherApps() {
               username="${app.username}"
               appid="${app.id}"
               apikey="${app.apikey}"
-              adtype="image"
+              adtype="image">
             </script>`;
 
             return (
