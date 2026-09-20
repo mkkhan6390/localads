@@ -35,14 +35,42 @@ document.addEventListener('DOMContentLoaded', function() {
   adtypeSelect.addEventListener('change', saveValues);
 
   // Show status message
-  function showStatus(message, type) {
+  let statusTimer = null;
+  function showStatus(message, type, duration = 3000) {
     status.textContent = message;
     status.className = `status ${type}`;
     status.classList.remove('hidden');
     
-    setTimeout(() => {
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => {
       status.classList.add('hidden');
-    }, 3000);
+    }, duration);
+  }
+
+  // Tell the user whether a REAL ad actually appeared (instead of a fake test ad).
+  // The SDK needs a few seconds: location lookup (up to 5s) + the server call.
+  let adCheckId = 0;
+  async function waitForAd(tabId) {
+    const myId = ++adCheckId; // a newer injection cancels older checks
+    for (let i = 0; i < 12; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (myId !== adCheckId) return;
+      try {
+        const [res] = await chrome.scripting.executeScript({
+          target: { tabId },
+          func: () => !!document.getElementById('ad-container')
+        });
+        if (res && res.result) {
+          showStatus('Ad is showing on the page', 'success');
+          return;
+        }
+      } catch (e) {
+        return; // tab closed / navigated away
+      }
+    }
+    if (myId === adCheckId) {
+      showStatus('No ad returned. Check that an active ad exists for this pincode and Ad Type.', 'error', 6000);
+    }
   }
 
   // Inject script button click handler
@@ -76,7 +104,8 @@ document.addEventListener('DOMContentLoaded', function() {
       });
 
       showStatus('Script injected successfully!', 'success');
-      
+      waitForAd(tab.id);
+
     } catch (error) {
       console.error('Injection failed:', error);
       showStatus('Failed to inject script', 'error');
@@ -92,6 +121,14 @@ function injectSDKScript(username, appid, apikey, adtype, pincode) {
     existingScript.remove();
   }
 
+  // Also remove the ad left on the page by the previous injection. The SDK only
+  // builds its ad box (position + size) when none exists yet, so without this,
+  // choosing a different Ad Type would keep the old box (or the dim backdrop).
+  ['ad-container', 'ad-backdrop'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  });
+
   // Create and inject the new script
   const script = document.createElement('script');
   script.async = true;
@@ -100,12 +137,28 @@ function injectSDKScript(username, appid, apikey, adtype, pincode) {
   script.setAttribute('appid', appid);
   script.setAttribute('apikey', apikey);
   script.setAttribute('adtype', adtype);
+  // The SDK chooses WHICH ads to request from `position` (sidebar | bottom |
+  // fullscreen), not from `adtype`. Without this, every injection asked for the
+  // right-sidebar slot, so bottom-banner and interstitial ads could never show.
+  const POSITION_BY_ADTYPE = { 'bottom-banner': 'bottom', 'right-sidebar': 'sidebar', 'interstitial': 'fullscreen' };
+  script.setAttribute('position', POSITION_BY_ADTYPE[adtype] || 'sidebar');
   if (pincode) {
     script.setAttribute('pincode', pincode);
   }
   
   // Append to head
   document.head.appendChild(script);
+
+  // Remember these exact settings for THIS TAB only (sessionStorage is cleared when the
+  // tab closes). A page refresh throws the injected SDK away, so content.js reads this
+  // and injects the SDK again after every refresh -> a fresh (next) ad each time.
+  try {
+    sessionStorage.setItem('localads_injector', JSON.stringify({
+      username, appid, apikey, adtype, position: script.getAttribute('position'), pincode
+    }));
+  } catch (e) {
+    // The site blocks storage: the ad still shows now, it just won't come back after a refresh.
+  }
   
-  console.log('SDK script injected with parameters:', { username, appid, apikey, adtype, pincode });
+  console.log('SDK script injected with parameters:', { username, appid, apikey, adtype, pincode, position: script.getAttribute('position') });
 }
