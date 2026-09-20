@@ -38,9 +38,12 @@ router.post("/create", upload.single("file"), authenticateuser, resolvePincodeFr
     const pincode = req.body.pincode;
     const displaylevel = req.body.displaylevel;
     const type = req.body.type;
-	
+    const placement = req.body.placement;
+
+    const VALID_PLACEMENTS = ['bottom_banner', 'right_sidebar', 'interstitial'];
+
     // Validate required fields
-    const requiredFields = { adtitle, addesc, pincode, displaylevel, type };
+    const requiredFields = { adtitle, addesc, pincode, displaylevel, type, placement };
     if (!file) return res.status(422).json({ error: "Ad file missing" });
 
     const missingFields = Object.entries(requiredFields)
@@ -54,6 +57,13 @@ router.post("/create", upload.single("file"), authenticateuser, resolvePincodeFr
       });
     }
 
+    if (!VALID_PLACEMENTS.includes(placement)) {
+      return res.status(422).json({
+        error: "Invalid placement",
+        validPlacements: VALID_PLACEMENTS
+      });
+    }
+
     // Cloudinary already processed the file, URL is available
     const fileurl = file.path;
 
@@ -62,14 +72,14 @@ router.post("/create", upload.single("file"), authenticateuser, resolvePincodeFr
       INSERT INTO ads(
         owner_id, title, description, pincode, 
         cityid, districtid, stateid, countryid, 
-        display_level, type, ad_url, added_date
-      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        display_level, type, placement, ad_url, added_date
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const params = [
       userid, adtitle, addesc, pincode,
       cityid, districtid, stateid, countryid,
-      displaylevel, type, fileurl, new Date()
+      displaylevel, type, placement, fileurl, new Date()
     ];
 
     const result = await db.query(insertQuery, params);
@@ -153,13 +163,16 @@ router.put("/update/:id", upload.single("file"), authenticateuser, resolvePincod
 		const pincode = req.body.pincode;
 		const displaylevel = req.body.displaylevel;
 		const type = req.body.type;
+		const placement = req.body.placement;
 		const cityid = req.body.cityid;
 		const districtid = req.body.districtid;
 		const stateid = req.body.stateid;
 		const countryid = req.body.countryid;
 
+		const VALID_PLACEMENTS = ['bottom_banner', 'right_sidebar', 'interstitial'];
+
 		// Validate required fields
-		const requiredFields = { adtitle, addesc, pincode, displaylevel, type };
+		const requiredFields = { adtitle, addesc, pincode, displaylevel, type, placement };
 		const missingFields = Object.entries(requiredFields)
 			.filter(([_, value]) => !value)
 			.map(([key]) => key);
@@ -168,6 +181,13 @@ router.put("/update/:id", upload.single("file"), authenticateuser, resolvePincod
 			return res.status(422).json({
 				error: "Required fields missing",
 				missingFields
+			});
+		}
+
+		if (!VALID_PLACEMENTS.includes(placement)) {
+			return res.status(422).json({
+				error: "Invalid placement",
+				validPlacements: VALID_PLACEMENTS
 			});
 		}
 
@@ -182,13 +202,13 @@ router.put("/update/:id", upload.single("file"), authenticateuser, resolvePincod
 				UPDATE ads SET 
 					title = ?, description = ?, pincode = ?,
 					cityid = ?, districtid = ?, stateid = ?, countryid = ?,
-					display_level = ?, type = ?, ad_url = ?
+					display_level = ?, type = ?, placement = ?, ad_url = ?
 				WHERE id = ? AND owner_id = ?
 			`;
 			params = [
 				adtitle, addesc, pincode,
 				cityid, districtid, stateid, countryid,
-				displaylevel, type, fileurl,
+				displaylevel, type, placement, fileurl,
 				adId, userid
 			];
 		} else {
@@ -197,13 +217,13 @@ router.put("/update/:id", upload.single("file"), authenticateuser, resolvePincod
 				UPDATE ads SET 
 					title = ?, description = ?, pincode = ?,
 					cityid = ?, districtid = ?, stateid = ?, countryid = ?,
-					display_level = ?, type = ?
+					display_level = ?, type = ?, placement = ?
 				WHERE id = ? AND owner_id = ?
 			`;
 			params = [
 				adtitle, addesc, pincode,
 				cityid, districtid, stateid, countryid,
-				displaylevel, type,
+				displaylevel, type, placement,
 				adId, userid
 			];
 		}
