@@ -28,6 +28,7 @@ const PLACEMENT_SPECS = {
     recommendedWidth: 1200,
     recommendedHeight: 300,
     useCase: 'Fixed or sticky footers',
+    maxFileSizeKB: 300,
   },
   right_sidebar: {
     label: 'Right Sidebar',
@@ -38,6 +39,7 @@ const PLACEMENT_SPECS = {
     recommendedWidth: 600,
     recommendedHeight: 1200,
     useCase: 'Vertical sidebars',
+    maxFileSizeKB: 500,
   },
   interstitial: {
     label: 'Interstitial (Full Screen)',
@@ -48,14 +50,120 @@ const PLACEMENT_SPECS = {
     recommendedWidth: 1920,
     recommendedHeight: 1080,
     useCase: 'Center overlay modal',
+    maxFileSizeKB: 1024,
   },
 };
 
 // Client-side file validation limits shared across all placements.
+// MAX_FILE_SIZE_MB is now only a hard outer ceiling (safety net); the real
+// cap used per upload comes from each placement's maxFileSizeKB above, so
+// a Bottom Banner can't sneak in at the same size budget as a full-screen
+// Interstitial.
 const FILE_CONSTRAINTS = {
-  MAX_FILE_SIZE_MB: 5,
+  MAX_FILE_SIZE_MB: 1,
+  MIN_FILE_SIZE_KB: 5, // safety floor: anything smaller is almost certainly a broken/blank file
   ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
 };
+
+// Compresses/resizes an image in the browser (via <canvas>) so most users
+// never see a "file too big" or "image too large" error.
+//   1. Dimension cap: if the image's pixel width/height exceeds maxWidth/
+//      maxHeight (we pass each placement's `recommended` size), it's scaled
+//      down proportionally to fit inside that box FIRST — regardless of
+//      file size — since an oversized-but-correctly-shaped image (e.g. an
+//      8000x1000 banner) is wasted resolution that only slows down upload,
+//      decode, and on-page rendering.
+//   2. Byte cap: after any dimension downscale, if the file is still over
+//      maxSizeMB it iteratively lowers JPEG/WEBP quality and, if still too
+//      big, shrinks dimensions further, until it fits (or gives up after a
+//      few tries and returns the best attempt).
+// If the image already fits both the dimension box and the byte cap, the
+// original file is returned untouched (no needless re-encoding/quality loss).
+function compressImage(file, maxSizeMB = FILE_CONSTRAINTS.MAX_FILE_SIZE_MB, maxWidth = null, maxHeight = null) {
+  const maxBytes = maxSizeMB * 1024 * 1024;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      const { width: origWidth, height: origHeight } = img;
+
+      // Step 1: does this image need downscaling to fit the placement's
+      // recommended dimension box? (Aspect ratio is preserved — it was
+      // already validated separately — so a single proportional scale
+      // factor keeps both dimensions in bounds together.)
+      let startWidth = origWidth;
+      let startHeight = origHeight;
+      const needsDimensionDownscale =
+        (maxWidth && origWidth > maxWidth) || (maxHeight && origHeight > maxHeight);
+
+      if (needsDimensionDownscale) {
+        const scale = Math.min(
+          maxWidth ? maxWidth / origWidth : 1,
+          maxHeight ? maxHeight / origHeight : 1
+        );
+        startWidth = Math.round(origWidth * scale);
+        startHeight = Math.round(origHeight * scale);
+      }
+
+      // Nothing to do: right-sized already, and already under the byte cap.
+      if (!needsDimensionDownscale && file.size <= maxBytes) {
+        resolve(file);
+        return;
+      }
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+
+      const tryCompress = (w, h, quality, attemptsLeft) => {
+        canvas.width = w;
+        canvas.height = h;
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file); // fallback: couldn't compress, let validation catch it
+              return;
+            }
+            if (blob.size <= maxBytes || attemptsLeft <= 0) {
+              const compressedFile = new File(
+                [blob],
+                file.name,
+                { type: outputType, lastModified: Date.now() }
+              );
+              resolve(compressedFile);
+            } else {
+              // Still too big: lower quality first, then shrink dimensions.
+              const nextQuality = quality > 0.5 ? quality - 0.15 : quality;
+              const nextW = quality <= 0.5 ? Math.round(w * 0.85) : w;
+              const nextH = quality <= 0.5 ? Math.round(h * 0.85) : h;
+              tryCompress(nextW, nextH, nextQuality, attemptsLeft - 1);
+            }
+          },
+          outputType,
+          quality
+        );
+      };
+
+      // Step 2: run the byte-size compression loop starting from the
+      // (possibly already downscaled) dimensions.
+      tryCompress(startWidth, startHeight, 0.85, 6);
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file); // fallback: couldn't read it, let existing validation catch it
+    };
+
+    img.src = objectUrl;
+  });
+}
 
 // Reads an image file's pixel dimensions using the HTML5 Image() constructor
 // and checks them against the selected placement's minimum resolution and
@@ -77,7 +185,12 @@ function checkImageSpecs(file, placementKey) {
       }
 
       let reason = null;
-      if (width < spec.minWidth || height < spec.minHeight) {
+      const fileSizeKB = file.size / 1024;
+      if (fileSizeKB < FILE_CONSTRAINTS.MIN_FILE_SIZE_KB) {
+        reason = 'too_small_file';
+      } else if (spec.maxFileSizeKB && fileSizeKB > spec.maxFileSizeKB) {
+        reason = 'too_big_file';
+      } else if (width < spec.minWidth || height < spec.minHeight) {
         reason = 'too_small';
       } else {
         const ratio = width / height;
@@ -87,7 +200,7 @@ function checkImageSpecs(file, placementKey) {
         if (!matchesRatio) reason = 'bad_ratio';
       }
 
-      resolve({ valid: !reason, width, height, reason });
+      resolve({ valid: !reason, width, height, fileSizeKB, reason });
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
@@ -109,6 +222,8 @@ function NewAdModal(props) {
     title: '',
     description: '',
     pincode: '',
+    latitude: '',
+    longitude: '',
     displaylevel: '',
     type: '',
     placement: ''
@@ -318,14 +433,26 @@ function NewAdModal(props) {
         rejectFile(inputEl);
         return;
       }
-      if (selectedFile.size > FILE_CONSTRAINTS.MAX_FILE_SIZE_MB * 1024 * 1024) {
-        window.alert(`File size must be less than ${FILE_CONSTRAINTS.MAX_FILE_SIZE_MB}MB.`);
+      const spec = PLACEMENT_SPECS[formValues.placement];
+      const targetCapMB = (spec.maxFileSizeKB || FILE_CONSTRAINTS.MAX_FILE_SIZE_MB * 1024) / 1024;
+
+      // Instead of rejecting an oversized file outright, compress it in the
+      // browser first, targeting THIS placement's own KB cap AND auto-
+      // downscaling to the placement's recommended pixel dimensions if the
+      // image is larger than that (no-op if it already fits both). Only if
+      // compression genuinely can't get it small enough do we reject.
+      setImageSpecCheck({ valid: false, width: 0, height: 0, reason: 'compressing', placement: formValues.placement });
+      compressImage(selectedFile, targetCapMB, spec.recommendedWidth, spec.recommendedHeight).then((processedFile) => {
+      if (processedFile.size > targetCapMB * 1024 * 1024) {
+        window.alert(
+          `This image is too large even after compression (still over ${spec.maxFileSizeKB}KB, the cap for "${spec.label}"). ` +
+          `Please try a smaller or simpler image.`
+        );
         rejectFile(inputEl);
         return;
       }
 
-      const spec = PLACEMENT_SPECS[formValues.placement];
-      checkImageSpecs(selectedFile, formValues.placement).then((specCheck) => {
+      checkImageSpecs(processedFile, formValues.placement).then((specCheck) => {
         if (!specCheck.valid) {
           if (specCheck.reason === 'too_small') {
             window.alert(
@@ -347,12 +474,14 @@ function NewAdModal(props) {
           return;
         }
 
-        // Accepted: only now does the file enter form state and the
-        // Live Ad Preview, sized/shaped for the selected placement.
-        setFormValues((prev) => ({ ...prev, file: selectedFile }));
+        // Accepted: only now does the (compressed, if needed) file enter
+        // form state and the Live Ad Preview, sized/shaped for the
+        // selected placement.
+        setFormValues((prev) => ({ ...prev, file: processedFile }));
         setExistingImageUrl('');
         setImageSpecCheck({ ...specCheck, placement: formValues.placement });
       });
+      }); // end compressImage(...).then
     } else {
       setFormValues((prev) => ({
         ...prev,
@@ -360,31 +489,45 @@ function NewAdModal(props) {
       }));
 
       // If the Placement changes after a file was already accepted,
-      // re-validate that same file against the newly selected placement's
-      // spec — and reject it (with an alert) if it no longer fits.
+      // re-run it through compression against the NEW placement's spec —
+      // its recommended pixel dimensions (auto-downscale if now oversized)
+      // and its KB cap (auto-recompress if now over budget). This is a
+      // no-op if the file already fits the new placement. Only a genuine
+      // dimension-too-small or aspect-ratio mismatch (which no amount of
+      // compression can fix) still rejects the file.
       if (name === 'placement' && formValues.file) {
         const fileToRecheck = formValues.file;
         const newSpec = PLACEMENT_SPECS[value];
-        checkImageSpecs(fileToRecheck, value).then((specCheck) => {
-          if (!specCheck.valid && newSpec) {
-            if (specCheck.reason === 'too_small') {
-              window.alert(
-                `Your selected image no longer fits "${newSpec.label}". Minimum size is ` +
-                `${newSpec.minWidth}×${newSpec.minHeight}px, but your image is ${specCheck.width}×${specCheck.height}px. Please upload a new image.`
-              );
-            } else if (specCheck.reason === 'bad_ratio') {
-              window.alert(
-                `Your selected image doesn't match "${newSpec.label}"'s required aspect ratio ` +
-                `(${newSpec.aspectRatioLabels.join(' or ')}). Please upload a new image.`
-              );
-            } else {
-              window.alert("Couldn't read this image file. Please choose a different file.");
+        if (!newSpec) return;
+
+        const newCapMB = newSpec.maxFileSizeKB / 1024;
+        setImageSpecCheck({ valid: false, width: 0, height: 0, reason: 'compressing', placement: value });
+        compressImage(fileToRecheck, newCapMB, newSpec.recommendedWidth, newSpec.recommendedHeight).then((processedFile) => {
+          checkImageSpecs(processedFile, value).then((specCheck) => {
+            if (!specCheck.valid) {
+              if (specCheck.reason === 'too_small') {
+                window.alert(
+                  `Your selected image no longer fits "${newSpec.label}". Minimum size is ` +
+                  `${newSpec.minWidth}×${newSpec.minHeight}px, but your image is ${specCheck.width}×${specCheck.height}px. Please upload a new image.`
+                );
+              } else if (specCheck.reason === 'bad_ratio') {
+                window.alert(
+                  `Your selected image doesn't match "${newSpec.label}"'s required aspect ratio ` +
+                  `(${newSpec.aspectRatioLabels.join(' or ')}). Please upload a new image.`
+                );
+              } else if (specCheck.reason === 'too_big_file') {
+                window.alert(`Your selected image no longer fits "${newSpec.label}" even after compression. Please upload a new image.`);
+              } else {
+                window.alert("Couldn't read this image file. Please choose a different file.");
+              }
+              rejectFile(fileInputRef.current);
+              return;
             }
-            rejectFile(fileInputRef.current);
-          } else {
+            setFormValues((prev) => ({ ...prev, file: processedFile }));
             setImageSpecCheck({ ...specCheck, placement: value });
-          }
+          });
         });
+        return;
       }
     }
     
@@ -418,7 +561,7 @@ function NewAdModal(props) {
           });
 
           if (response.data?.pincode) {
-            setFormValues((prev) => ({ ...prev, pincode: response.data.pincode }));
+            setFormValues((prev) => ({ ...prev, pincode: response.data.pincode, latitude, longitude }));
             setErrors((prev) => ({ ...prev, pincode: '' }));
           } else {
             setErrorMessage('Could not determine pincode for your location');
@@ -484,6 +627,12 @@ function NewAdModal(props) {
             `Image aspect ratio doesn't match "${placementSpec.label}" (requires ` +
             `${placementSpec.aspectRatioLabels.join(' or ')}). Your image is ${specCheck.width}×${specCheck.height}px.`
           );
+        } else if (specCheck.reason === 'too_big_file') {
+          setErrorMessage(
+            `Image exceeds the ${placementSpec.maxFileSizeKB}KB cap for "${placementSpec.label}". Please choose a smaller image.`
+          );
+        } else if (specCheck.reason === 'too_small_file') {
+          setErrorMessage(`Image file is under ${FILE_CONSTRAINTS.MIN_FILE_SIZE_KB}KB and looks broken or blank. Please choose a different image.`);
         } else {
           setErrorMessage('Could not read this image file. Please choose a different file.');
         }
@@ -502,6 +651,10 @@ function NewAdModal(props) {
     formData.append('title', formValues.title);
     formData.append('description', formValues.description);
     formData.append('pincode', formValues.pincode);
+    if (formValues.latitude && formValues.longitude) {
+      formData.append('latitude', formValues.latitude);
+      formData.append('longitude', formValues.longitude);
+    }
     formData.append('displaylevel', formValues.displaylevel);
     formData.append('userid', userId);
     
@@ -544,7 +697,23 @@ function NewAdModal(props) {
       }
     } catch (error) {
       console.error("Error submitting ad:", error);
-      setErrorMessage('Failed to save ad. Please try again.');
+
+      const data = error?.response?.data;
+      let message = 'Failed to save ad. Please try again.';
+
+      if (typeof data === 'string' && data.trim()) {
+        message = data;
+      } else if (data?.missingFields?.length) {
+        message = `Failed to save ad: missing ${data.missingFields.join(', ')}.`;
+      } else if (data?.error) {
+        message = `Failed to save ad: ${data.error}`;
+      } else if (data?.message) {
+        message = `Failed to save ad: ${data.message}`;
+      } else if (error?.message) {
+        message = `Failed to save ad: ${error.message}`;
+      }
+
+      setErrorMessage(message);
     } finally {
       setLoading(false);
     }
@@ -698,7 +867,7 @@ function NewAdModal(props) {
                       <Form.Control.Feedback type="invalid">{errors.placement}</Form.Control.Feedback>
                       {selectedPlacementSpec && (
                         <small className="text-muted d-block mt-1">
-                          Aspect ratio: {selectedPlacementSpec.aspectRatioLabels.join(' or ')} · Min {selectedPlacementSpec.minWidth}×{selectedPlacementSpec.minHeight}px · Recommended {selectedPlacementSpec.recommendedWidth}×{selectedPlacementSpec.recommendedHeight}px · Best for {selectedPlacementSpec.useCase}
+                          Aspect ratio: {selectedPlacementSpec.aspectRatioLabels.join(' or ')} · Min {selectedPlacementSpec.minWidth}×{selectedPlacementSpec.minHeight}px · Recommended {selectedPlacementSpec.recommendedWidth}×{selectedPlacementSpec.recommendedHeight}px · Max {selectedPlacementSpec.maxFileSizeKB}KB · Best for {selectedPlacementSpec.useCase}
                         </small>
                       )}
                     </Form.Group>
@@ -710,7 +879,7 @@ function NewAdModal(props) {
                         <div className="fw-semibold">Click to upload or drag &amp; drop file</div>
                         <small className="text-muted">
                           {selectedPlacementSpec
-                            ? `PNG, JPG, or WEBP, up to ${FILE_CONSTRAINTS.MAX_FILE_SIZE_MB}MB. Requires ${selectedPlacementSpec.aspectRatioLabels.join(' or ')} ratio, min ${selectedPlacementSpec.minWidth}×${selectedPlacementSpec.minHeight}px (recommended ${selectedPlacementSpec.recommendedWidth}×${selectedPlacementSpec.recommendedHeight}px).`
+                            ? `PNG, JPG, or WEBP, up to ${selectedPlacementSpec.maxFileSizeKB}KB (we'll auto-compress larger files). Requires ${selectedPlacementSpec.aspectRatioLabels.join(' or ')} ratio, min ${selectedPlacementSpec.minWidth}×${selectedPlacementSpec.minHeight}px (recommended ${selectedPlacementSpec.recommendedWidth}×${selectedPlacementSpec.recommendedHeight}px).`
                             : 'Select a Placement above to see the required image specifications.'}
                         </small>
                         <Form.Control ref={fileInputRef} type="file" name="file" accept="image/jpeg,image/png,image/webp" onChange={handleChange} className="d-none" />
@@ -821,7 +990,11 @@ function NewAdModal(props) {
                     and every Placement change, so it always reflects the file
                     + placement combination currently shown above. */}
                 {imageSpecCheck && (
-                  imageSpecCheck.valid ? (
+                  imageSpecCheck.reason === 'compressing' ? (
+                    <Alert variant="info" className="py-1 px-2 mb-2 small d-flex align-items-center">
+                      <Spinner size="sm" animation="border" className="me-2" /> Optimizing image size…
+                    </Alert>
+                  ) : imageSpecCheck.valid ? (
                     <Alert variant="success" className="py-1 px-2 mb-2 small d-flex align-items-center">
                       <BsCheck2Circle className="me-1" /> Matches {PLACEMENT_SPECS[imageSpecCheck.placement]?.label} spec ({imageSpecCheck.width}×{imageSpecCheck.height}px)
                     </Alert>
@@ -829,7 +1002,9 @@ function NewAdModal(props) {
                     <Alert variant="danger" className="py-1 px-2 mb-2 small">
                       {imageSpecCheck.reason === 'no_placement' && '⚠ Select a Placement to validate this image.'}
                       {imageSpecCheck.reason === 'bad_type' && '⚠ Unsupported file type. Use JPG, PNG, or WEBP.'}
-                      {imageSpecCheck.reason === 'too_big_file' && `⚠ File exceeds ${FILE_CONSTRAINTS.MAX_FILE_SIZE_MB}MB.`}
+                      {imageSpecCheck.reason === 'too_big_file' && PLACEMENT_SPECS[imageSpecCheck.placement] &&
+                        `⚠ File exceeds the ${PLACEMENT_SPECS[imageSpecCheck.placement].maxFileSizeKB}KB cap for ${PLACEMENT_SPECS[imageSpecCheck.placement].label}.`}
+                      {imageSpecCheck.reason === 'too_small_file' && `⚠ File is under ${FILE_CONSTRAINTS.MIN_FILE_SIZE_KB}KB — likely broken or blank. Please choose a different image.`}
                       {imageSpecCheck.reason === 'unreadable' && '⚠ Could not read this image file.'}
                       {imageSpecCheck.reason === 'too_small' && PLACEMENT_SPECS[imageSpecCheck.placement] &&
                         `⚠ Too small for ${PLACEMENT_SPECS[imageSpecCheck.placement].label} (min ${PLACEMENT_SPECS[imageSpecCheck.placement].minWidth}×${PLACEMENT_SPECS[imageSpecCheck.placement].minHeight}px). Yours: ${imageSpecCheck.width}×${imageSpecCheck.height}px.`}
@@ -838,13 +1013,6 @@ function NewAdModal(props) {
                     </Alert>
                   )
                 )}
-
-                <span
-                  className="badge mb-2 align-self-start"
-                  style={{ backgroundColor: selectedPlacementSpec ? '#6366f1' : '#e2e8f0', color: selectedPlacementSpec ? '#fff' : '#64748b', fontWeight: '600', letterSpacing: '0.3px' }}
-                >
-                  {selectedPlacementSpec ? selectedPlacementSpec.label : 'Placement Not Selected'}
-                </span>
                 <h6 className="fw-bold text-dark text-truncate">{formValues.title || 'Your Catchy Title'}</h6>
                 <p className="text-muted small" style={{ fontSize: '11px', minHeight: '30px' }}>
                   {formValues.description || 'Ad description text will populate here as you type to give you a live preview.'}
