@@ -75,6 +75,18 @@
     .btn:active {
       background: #2a56c6;
     }
+
+    .btn-demo {
+      background: #34a853;
+    }
+
+    .btn-demo:hover {
+      background: #2c8f47;
+    }
+
+    .btn-demo:active {
+      background: #257a3c;
+    }
     
     .status {
       margin-top: 15px;
@@ -129,15 +141,15 @@
     <div class="form-group">
       <label for="adtype">Ad Type</label>
       <select id="adtype">
-        <option value="image">Image</option>
-        <option value="video">Video</option>
-        <option value="banner">Banner</option>
-        <option value="popup">Popup</option>
+        <option value="bottom-banner">Bottom Banner</option>
+        <option value="right-sidebar">Right Sidebar</option>
+        <option value="interstitial">Interstitial(Full Screen)</option>
       </select>
     </div>
     
     <button class="btn" id="injectBtn">Inject Script</button>
-    
+    <button class="btn btn-demo" id="demoBtn">Show Demo Ad</button>
+
     <div id="status" class="status hidden"></div>
   </div>
 
