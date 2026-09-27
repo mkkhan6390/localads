@@ -21,6 +21,8 @@ const Dashboard = ({ user,setLoggedIn }) => {
   const [toastMessage, setToastMessage] = useState("");
   const [activeTab, setActiveTab] = useState((user?.usertype || localStorage.getItem("usertype")) === "DEVELOPER" ? "apps":"ads");
   const [stats, setStats] = useState([]);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all"); // all | active | inactive | expired
   const [sortBy, setSortBy] = useState("date_new");
@@ -86,19 +88,33 @@ const Dashboard = ({ user,setLoggedIn }) => {
     fetchData();
   }, [navigate]);
 
+  // Load statistics every time the Statistics tab is opened, so numbers are always fresh
+  // (previously this ran once on page load, so new views/clicks never showed up).
   useEffect(() => {
+    if (activeTab !== "stats") return;
+
     const fetchStats = async () => {
+      setStatsLoading(true);
+      setStatsError("");
       try {
         const userid = localStorage.getItem('userid');
         const response = await api.post(`http://localhost:5000/dashboard/stats/${userid}`);
-        setStats(response.data);
+        setStats(Array.isArray(response.data) ? response.data : []);
       } catch (err) {
         console.log(err);
+        // Show the real reason instead of silently pretending there is simply no data.
+        setStatsError(
+          err.response?.data?.error ||
+          err.response?.data?.message ||
+          "Failed to load statistics. Please try again."
+        );
+      } finally {
+        setStatsLoading(false);
       }
     };
 
     fetchStats();
-  }, [navigate]);
+  }, [activeTab]);
 
   // Reset page when filters, query or sort change
   useEffect(() => {
@@ -859,7 +875,7 @@ const handleDetailsButton = (adId) => {
                     </Button>
                   )}
                 </div>
-                <Statistics adsData={stats} selectedAdId={selectedAdForStats} />
+                <Statistics adsData={stats} selectedAdId={selectedAdForStats} loading={statsLoading} error={statsError} />
               </>
             )}
 
