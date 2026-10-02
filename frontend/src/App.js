@@ -8,7 +8,7 @@ import Register from "./Components/auth/Register.js";
 import RegisterDeveloper from "./Components/auth/RegisterDeveloper.js";
 import Dashboard from "./Components/Dashboard/dashboard";
 import Home from "./Components/Landing/Home.js";
-import api from "./api.js";
+import api, { API_URL } from "./api.js";
 
 function App() { 
 	const [user, setUser] = useState(null);
@@ -25,7 +25,7 @@ function App() {
 			const token = localStorage.getItem("token");
 			const userid = localStorage.getItem("userid");
 
-			api.get("http://localhost:5000/user/getuser/" + userid, {
+			api.get(`${API_URL}/user/getuser/${userid}`, {
 				headers: { Authorization: `Bearer ${token}` }
 			}).then(response => {
 				      setUser({userid:response.data.userid,username:response.data.username,usertype:response.data.usertype})
