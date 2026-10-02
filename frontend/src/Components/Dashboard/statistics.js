@@ -103,6 +103,13 @@ const Statistics = ({ adsData, selectedAdId = null, loading = false, error = "" 
   // ✅ Day trend
   const dayTrendData = buildDayTrend(selectedAd.datetimes);
 
+  // Click rate and the last 7 days, worked out from data we already have.
+  const clickRate = totalViews > 0 ? `${((totalClicks / totalViews) * 100).toFixed(2)}%` : "n/a";
+  const sevenDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const last7Days = dayTrendData.filter((r) => r.date >= sevenDaysAgo);
+  const views7d = last7Days.reduce((sum, r) => sum + r.views, 0);
+  const clicks7d = last7Days.reduce((sum, r) => sum + r.clicks, 0);
+
   const renderPie = (title, data, dataKey) => (
     <Col md={6}>
       <Card className="shadow-sm p-3">
@@ -165,28 +172,49 @@ const Statistics = ({ adsData, selectedAdId = null, loading = false, error = "" 
 
       {/* 📊 Summary Cards */}
       <Row className="mb-4">
-        <Col md={3}>
+        <Col xs={6} md={3} className="mb-3 mb-md-0">
           <Card className="shadow-sm text-center p-3">
             <h6>Total Views</h6>
-            <h4>{totalViews}</h4>
+            <h4>{totalViews.toLocaleString()}</h4>
           </Card>
         </Col>
-        <Col md={3}>
+        <Col xs={6} md={3} className="mb-3 mb-md-0">
           <Card className="shadow-sm text-center p-3">
             <h6>Unique Views</h6>
-            <h4>{uniqueViews}</h4>
+            <h4>{uniqueViews.toLocaleString()}</h4>
           </Card>
         </Col>
-        <Col md={3}>
+        <Col xs={6} md={3} className="mb-3 mb-md-0">
           <Card className="shadow-sm text-center p-3">
             <h6>Total Clicks</h6>
-            <h4>{totalClicks}</h4>
+            <h4>{totalClicks.toLocaleString()}</h4>
           </Card>
         </Col>
-        <Col md={3}>
+        <Col xs={6} md={3} className="mb-3 mb-md-0">
           <Card className="shadow-sm text-center p-3">
             <h6>Unique Clicks</h6>
-            <h4>{uniqueClicks}</h4>
+            <h4>{uniqueClicks.toLocaleString()}</h4>
+          </Card>
+        </Col>
+      </Row>
+
+      <Row className="mb-4">
+        <Col xs={12} md={4} className="mb-3 mb-md-0">
+          <Card className="shadow-sm text-center p-3">
+            <h6>Click Rate</h6>
+            <h4>{clickRate}</h4>
+          </Card>
+        </Col>
+        <Col xs={12} md={4} className="mb-3 mb-md-0">
+          <Card className="shadow-sm text-center p-3">
+            <h6>Views (last 7 days)</h6>
+            <h4>{views7d.toLocaleString()}</h4>
+          </Card>
+        </Col>
+        <Col xs={12} md={4} className="mb-3 mb-md-0">
+          <Card className="shadow-sm text-center p-3">
+            <h6>Clicks (last 7 days)</h6>
+            <h4>{clicks7d.toLocaleString()}</h4>
           </Card>
         </Col>
       </Row>
