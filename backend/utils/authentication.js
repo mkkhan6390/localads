@@ -1,9 +1,17 @@
 const db = require("./data");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 require("dotenv").config();
 
 const SECRET_KEY = process.env.SECRET_KEY;
+
+// Constant-time string compare so API keys can't be guessed by timing.
+const safeEqual = (a, b) => {
+	const x = Buffer.from(String(a ?? ""));
+	const y = Buffer.from(String(b ?? ""));
+	return x.length === y.length && crypto.timingSafeEqual(x, y);
+};
 
 //FUNCTION TO AUTHENTICATE USERNAME AND ASSOCIATED PASSWORD
 const authenticateuser = (req, res, next) => {
@@ -16,7 +24,7 @@ const authenticateuser = (req, res, next) => {
 		return res.status(401).json({message: "Unauthorized request! Please provide credentials or a valid token to proceed."});
 	}
 
-	const selectQuery = `SELECT id, password, usertype FROM users WHERE username = ?`;
+	const selectQuery = `SELECT id, password, usertype FROM users WHERE username = ? AND (isactive IS NULL OR CAST(isactive AS UNSIGNED) = 1)`;
 
 	if (authHeader) {
 		const token = authHeader.split(" ")[1];
@@ -28,7 +36,6 @@ const authenticateuser = (req, res, next) => {
 
 			return next();
 		} catch (err) {
-			console.log(err)
 			return res.status(403).json({message: "Invalid Token"});
 		}
 	}
@@ -47,6 +54,8 @@ const authenticateuser = (req, res, next) => {
 					return res.status(401).json({message: "Unauthorized request: Invalid credentials"});
 				}
 
+				// Same shape as the token path, so routes can rely on req.user either way.
+				req.user = {id: user.id, username, usertype: user.usertype};
 				req.query.userid = req.body.userid = user.id;
 				req.query.usertype = req.body.usertype = user.usertype;
 				return next();
@@ -67,7 +76,10 @@ const authenticateapikey = (req, res, next) => {
 	const username = req.body.username || req.query.username;
 	const inputapikey = req.headers["api-key"] || req.body.apikey || req.query.apikey;
 
-	//add condition to validate username and apikey existence
+	if (!username || !inputapikey) {
+		return res.status(400).send("Unauthorized request!!! Please provide a username and apikey");
+	}
+
 	const selectquery = `select id, apikey from users where username = ?`;
 
 	db.query(selectquery, [username])
@@ -75,7 +87,7 @@ const authenticateapikey = (req, res, next) => {
 			const user = result[0];
 			//currently using the hashed apikey as api key.
 			//once the logic changes we need to start comparing with bcrypt.
-			const authenticated = inputapikey === user?.apikey;//bcrypt.compareSync(inputapikey, user?.apikey || "");//is it really necessary to encrypt the api at this point?//maybe do it later
+			const authenticated = safeEqual(inputapikey, user?.apikey);//bcrypt.compareSync(inputapikey, user?.apikey || "");//is it really necessary to encrypt the api at this point?//maybe do it later
 
 			if (!user || !authenticated) return res.status(400).send("Unauthorized request!!! Please provide a valid apikey");
 
