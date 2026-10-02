@@ -2,14 +2,46 @@ const express = require("express");
 const router = express.Router(); 
 require('dotenv').config()
 const {authenticateuser} = require('../utils/authentication')
-const {getAdDashboard} = require('../utils/stats')
+const {buildFocus} = require('../utils/focus')
 const db = require('../utils/data')
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Views/clicks for a list of ads, all time and last 7 days: one query per collection.
+// These come from the same raw events the Statistics page uses, so both pages always agree.
+// (The ads.views / ads.clicks columns in MySQL are only a rough counter; clicks were never written to them.)
+async function loadTraffic(adids) {
+	const traffic = new Map(adids.map(id => [String(id), { views: 0, clicks: 0, views7: 0, clicks7: 0 }]));
+	if (adids.length === 0) return traffic;
+
+	const mongo = await db.getDB();
+	const since = new Date(Date.now() - 7 * DAY_MS);
+
+	for (const kind of ['views', 'clicks']) {
+		const rows = await mongo.collection(kind).aggregate([
+			{ $match: { adid: { $in: [...traffic.keys()] } } },
+			{ $group: {
+				_id: '$adid',
+				total: { $sum: 1 },
+				recent: { $sum: { $cond: [{ $gte: ['$timestamp', since] }, 1, 0] } },
+			} },
+		]).toArray();
+
+		for (const row of rows) {
+			const entry = traffic.get(String(row._id));
+			if (!entry) continue;
+			entry[kind] = row.total;
+			entry[`${kind}7`] = row.recent;
+		}
+	}
+	return traffic;
+}
 
 router.get("/", authenticateuser, async (req, res) => {
 
 	try { 
-		const userid = req.user.id;
-		const user = req.user; 
+		const userid = req.body.userid; // set by authenticateuser for both token and password logins
+		const user = { username: req.user?.username || req.body.username };
 
 		// Fetch email/phone since the JWT payload only carries id, username, usertype
 		let email, phone;
@@ -52,15 +84,31 @@ router.get("/", authenticateuser, async (req, res) => {
 			ads = await db.query(fallbackQuery, [userid])
 		}
 
-		// Normalize BIT fields — mysql2 returns BIT(1) as Buffer, not integer
-		if (ads && ads.length > 0) {
-			ads = ads.map(ad => ({
-				...ad,
-				isactive: ad.isactive instanceof Buffer ? ad.isactive[0] : Number(ad.isactive)
-			}));
+		// Real traffic numbers. If MongoDB is down the dashboard still loads with the MySQL counters.
+		let traffic = null;
+		try {
+			traffic = await loadTraffic((ads || []).map(ad => ad.id));
+		} catch (trafficErr) {
+			console.log("Could not load traffic for dashboard:", trafficErr.message);
 		}
 
-		res.json({username: user.username, email, phone, ads});
+		// Normalize BIT fields — mysql2 returns BIT(1) as Buffer, not integer
+		ads = (ads || []).map(ad => {
+			const t = traffic?.get(String(ad.id));
+			return {
+				...ad,
+				isactive: ad.isactive instanceof Buffer ? ad.isactive[0] : Number(ad.isactive),
+				// An ad that was activated (landing page set) and has no impressions left has expired.
+				// Activating always sets remaining = 100, so a paused ad is never counted as expired.
+				is_expired: Boolean(ad.landing_url) && Number(ad.remaining) === 0 ? 1 : 0,
+				views: t ? t.views : ad.views,
+				clicks: t ? t.clicks : ad.clicks,
+				views_7d: t?.views7,
+				clicks_7d: t?.clicks7,
+			};
+		});
+
+		res.json({username: user.username, email, phone, ads, focus: buildFocus(ads)});
 
 	} catch (err) {
 		console.log(err)
