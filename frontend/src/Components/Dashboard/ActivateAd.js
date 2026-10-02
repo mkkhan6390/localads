@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../api';
+import api, { API_URL } from '../../api';
 import { Button, Modal, Form, OverlayTrigger, Tooltip, Tab, Nav, Row, Col, ToggleButton, ToggleButtonGroup, Spinner, Alert, Container, Card, InputGroup } from 'react-bootstrap';
 import { BsArrowUpRightSquareFill, BsGlobe, BsWhatsapp, BsTelephone } from 'react-icons/bs';
 
@@ -58,7 +58,7 @@ function ActivateAdModal(props) {
         const token = localStorage.getItem("token");
 
         try {
-            const response = await api.get(`http://localhost:5000/ad/activate?id=${props.selectedAd}&landingurl=${landingurl}`, {
+            const response = await api.get(`${API_URL}/ad/activate?id=${props.selectedAd}&landingurl=${encodeURIComponent(landingurl)}`, {
                 headers: { authorization: `Bearer ${token}` }
             });
 

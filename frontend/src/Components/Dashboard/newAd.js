@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import api from '../../api';
+import api, { API_URL } from '../../api';
 import { 
   Button, 
   Modal, 
@@ -277,7 +277,7 @@ function NewAdModal(props) {
         async function getAdById() {
           try {
             const token = localStorage.getItem("token");
-            const response = await api.get(`http://localhost:5000/ad/ad/${adId}`, {
+            const response = await api.get(`${API_URL}/ad/ad/${adId}`, {
               headers: { authorization: `Bearer ${token}` },
             });
             const ad = response.data;
@@ -418,18 +418,19 @@ function NewAdModal(props) {
 
     if (name === 'file' && files && files[0]) {
       const selectedFile = files[0];
+      setErrorMessage(''); // problems with the previous file no longer apply
 
       // Validate type/size/aspect-ratio against the selected Placement's
       // spec BEFORE accepting the file. Any mismatch is alerted and the
       // file is rejected outright — it never reaches form state or the
       // Live Ad Preview.
       if (!formValues.placement) {
-        window.alert('Please select a Placement first so we can validate this image against the correct specifications.');
+        setErrorMessage('Please select a Placement first so we can validate this image against the correct specifications.');
         rejectFile(inputEl);
         return;
       }
       if (!FILE_CONSTRAINTS.ALLOWED_TYPES.includes(selectedFile.type)) {
-        window.alert('This file type is not supported. Please upload a PNG, JPG, or WEBP image.');
+        setErrorMessage('This file type is not supported. Please upload a PNG, JPG, or WEBP image.');
         rejectFile(inputEl);
         return;
       }
@@ -444,7 +445,7 @@ function NewAdModal(props) {
       setImageSpecCheck({ valid: false, width: 0, height: 0, reason: 'compressing', placement: formValues.placement });
       compressImage(selectedFile, targetCapMB, spec.recommendedWidth, spec.recommendedHeight).then((processedFile) => {
       if (processedFile.size > targetCapMB * 1024 * 1024) {
-        window.alert(
+        setErrorMessage(
           `This image is too large even after compression (still over ${spec.maxFileSizeKB}KB, the cap for "${spec.label}"). ` +
           `Please try a smaller or simpler image.`
         );
@@ -455,19 +456,19 @@ function NewAdModal(props) {
       checkImageSpecs(processedFile, formValues.placement).then((specCheck) => {
         if (!specCheck.valid) {
           if (specCheck.reason === 'too_small') {
-            window.alert(
+            setErrorMessage(
               `This image doesn't match the "${spec.label}" placement's size requirements. ` +
               `Minimum size is ${spec.minWidth}×${spec.minHeight}px, but your image is ${specCheck.width}×${specCheck.height}px.`
             );
           } else if (specCheck.reason === 'bad_ratio') {
-            window.alert(
+            setErrorMessage(
               `This image's aspect ratio doesn't match the "${spec.label}" placement. ` +
               `Required aspect ratio: ${spec.aspectRatioLabels.join(' or ')}. ` +
               `Recommended size: ${spec.recommendedWidth}×${spec.recommendedHeight}px. ` +
               `Your image is ${specCheck.width}×${specCheck.height}px.`
             );
           } else {
-            window.alert("Couldn't read this image file. Please choose a different file.");
+            setErrorMessage("Couldn't read this image file. Please choose a different file.");
           }
           // Reject: do not accept the file, do not update the preview.
           rejectFile(inputEl);
@@ -506,19 +507,19 @@ function NewAdModal(props) {
           checkImageSpecs(processedFile, value).then((specCheck) => {
             if (!specCheck.valid) {
               if (specCheck.reason === 'too_small') {
-                window.alert(
+                setErrorMessage(
                   `Your selected image no longer fits "${newSpec.label}". Minimum size is ` +
                   `${newSpec.minWidth}×${newSpec.minHeight}px, but your image is ${specCheck.width}×${specCheck.height}px. Please upload a new image.`
                 );
               } else if (specCheck.reason === 'bad_ratio') {
-                window.alert(
+                setErrorMessage(
                   `Your selected image doesn't match "${newSpec.label}"'s required aspect ratio ` +
                   `(${newSpec.aspectRatioLabels.join(' or ')}). Please upload a new image.`
                 );
               } else if (specCheck.reason === 'too_big_file') {
-                window.alert(`Your selected image no longer fits "${newSpec.label}" even after compression. Please upload a new image.`);
+                setErrorMessage(`Your selected image no longer fits "${newSpec.label}" even after compression. Please upload a new image.`);
               } else {
-                window.alert("Couldn't read this image file. Please choose a different file.");
+                setErrorMessage("Couldn't read this image file. Please choose a different file.");
               }
               rejectFile(fileInputRef.current);
               return;
@@ -553,8 +554,7 @@ function NewAdModal(props) {
         try {
           const { latitude, longitude } = position.coords;
           const token = localStorage.getItem("token");
-          const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
+          
           const response = await api.get(`${API_URL}/ad/reverse-geocode`, {
             params: { lat: latitude, long: longitude },
             headers: { authorization: `Bearer ${token}` },
@@ -664,8 +664,7 @@ function NewAdModal(props) {
     }
 
     try {
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      
+            
       let response;
       if (isEditMode) {
         // UPDATE the existing ad

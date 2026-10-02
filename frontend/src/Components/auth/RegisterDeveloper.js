@@ -12,6 +12,7 @@ import {
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import "../../App.css";
+import { API_URL } from "../../api";
 
 const RegisterDeveloper = () => {
   const [signupdata, setSignupdata] = useState({
@@ -53,7 +54,7 @@ const RegisterDeveloper = () => {
     }
 
     try {
-      await axios.post("http://localhost:5000/user/create", signupdata);
+      await axios.post(`${API_URL}/user/create`, signupdata);
       alert("Signup successful! You can now log in.");
       navigate("/login"); // Redirect to login page after success
     } catch (err) {

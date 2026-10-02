@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import api from "../../api";
+import api, { API_URL } from "../../api";
 import { Copy, CheckCircle, Plus } from "lucide-react";
 import {
   Button,
@@ -37,7 +37,7 @@ export default function PublisherApps() {
     setLoadingApps(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await api.get("http://localhost:5000/apps", {
+      const res = await api.get(`${API_URL}/apps`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setApps(res.data); // expect array of apps
@@ -65,7 +65,7 @@ export default function PublisherApps() {
     try {
       const token = localStorage.getItem("token");
       const response = await api.post(
-        "http://localhost:5000/apps/add",
+        `${API_URL}/apps/add`,
         formData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -115,7 +115,7 @@ export default function PublisherApps() {
             //for react.js
             // useEffect(() => {
             //     const script = document.createElement("script");
-            //     script.src = "http://localhost:5000/sdk";
+            //     script.src = "${API_URL}/sdk";
             //     script.async = true;
   
             //     // add custom attributes
@@ -132,7 +132,7 @@ export default function PublisherApps() {
             // }, []);
 
             const embedScript = `
-            <script async src="http://localhost:5000/sdk"
+            <script async src="${API_URL}/sdk"
               username="${app.username}"
               appid="${app.id}"
               apikey="${app.apikey}"

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card, Nav, Form, Button, InputGroup, FormControl, Alert, Badge, Row, Col } from "react-bootstrap";
 import { Eye, EyeOff, Copy, RefreshCw, User, Mail, ShieldCheck, Grid } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import api from "../../api";
+import api, { API_URL } from "../../api";
 
 const PRIMARY = "#534AB7";
 
@@ -75,7 +75,7 @@ const Profile = ({ user, userData, onUpdate }) => {
         setSavingEmail(true);
         try {
             await api.patch(
-                `http://localhost:5000/user/email/${userid}`,
+                `${API_URL}/user/email/${userid}`,
                 { email },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -103,7 +103,7 @@ const Profile = ({ user, userData, onUpdate }) => {
         setSavingPhone(true);
         try {
             await api.patch(
-                `http://localhost:5000/user/phone/${userid}`,
+                `${API_URL}/user/phone/${userid}`,
                 { phone },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -139,7 +139,7 @@ const Profile = ({ user, userData, onUpdate }) => {
         setSavingPassword(true);
         try {
             await api.patch(
-                `http://localhost:5000/user/password/${userid}`,
+                `${API_URL}/user/password/${userid}`,
                 { newpassword: newPassword },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -161,7 +161,7 @@ const Profile = ({ user, userData, onUpdate }) => {
         if (!token) return;
 
         try {
-            const response = await api.patch("http://localhost:5000/user/genkey", {}, { headers: { authorization: `Bearer ${token}` } });
+            const response = await api.patch(`${API_URL}/user/genkey`, {}, { headers: { authorization: `Bearer ${token}` } });
             setApiKey(response.data.apikey)
             setShowKey(false);
         } catch (error) {
@@ -174,7 +174,7 @@ const Profile = ({ user, userData, onUpdate }) => {
         if (!token) return;
 
         try {
-            const response = await api.get("http://localhost:5000/user/key", { headers: { Authorization: `Bearer ${token}` } });
+            const response = await api.get(`${API_URL}/user/key`, { headers: { Authorization: `Bearer ${token}` } });
             if (response.data.apikey) {
                 setApiKey(response.data.apikey)
                 setShowKey(false);

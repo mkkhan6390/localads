@@ -12,6 +12,7 @@ import {
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import "../../App.css";
+import { API_URL } from "../../api";
 
 const Login = ({ setUser , setLoggedIn}) => {
   const [signindata, setSignindata] = useState({ username: "", password: "" });
@@ -28,7 +29,7 @@ const Login = ({ setUser , setLoggedIn}) => {
     e.preventDefault();
     setError("");
     try {
-      const response = await axios.post("http://localhost:5000/user/login", signindata);
+      const response = await axios.post(`${API_URL}/user/login`, signindata);
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("userid", response.data.userid);
       localStorage.setItem("username", response.data.username);
