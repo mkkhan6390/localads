@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../utils/data");
-const {authenticateuser, authenticateapikey} = require('../utils/authentication')
+const {authenticateuser, authenticateapikey, authenticateToken} = require('../utils/authentication')
 const {getpincodedetails, getAdsByRegion, isValidLandingPageUrl} = require('../utils/functions')
 const {reverseGeocode} = require('../utils/geocoder')
 require('dotenv').config()
@@ -24,7 +24,8 @@ const upload = multer({ storage });
 
 
 // POST CALL TO UPLOAD AND CREATE AN ADVERTISEMENT
-router.post("/create", upload.single("file"), authenticateuser, resolvePincodeFromCoordinates, getpincodedetails, async (req, res) => {
+// authenticateToken runs first so anonymous requests can never upload files to Cloudinary.
+router.post("/create", authenticateToken, upload.single("file"), authenticateuser, resolvePincodeFromCoordinates, getpincodedetails, async (req, res) => {
   
 	try {
     const file = req.file;
@@ -132,28 +133,31 @@ router.get("/reverse-geocode", authenticateuser, async (req, res) => {
 });
 
 router.get("/myads", authenticateuser, async (req, res) => {
-	
-	const userid = req.body.id
-	const query = `select * from ads where owner_id = ?`
-	const ads = await db.query(query, [userid]) 
-	res.json(ads)
+	try {
+		const query = `select * from ads where owner_id = ? and (CAST(is_deleted AS UNSIGNED) = 0 or is_deleted is null)`
+		const ads = await db.query(query, [req.body.userid])
+		res.json(ads)
+	} catch (error) {
+		console.error("Error loading ads:", error.message)
+		res.status(500).json({error: "Unable to load ads"})
+	}
 })
 
+// An advertiser can only open their own ads.
 router.get("/ad/:id", authenticateuser, async (req, res) => {
-	
-	const userid = req.body.id;
-	const id = req.params.id;
-
-	const query = `select * from ads where id = ?`
-	const params =  [id] 
-
-	const ads = await db.query(query, params)
-	res.json(ads[0])
-
+	try {
+		const query = `select * from ads where id = ? and owner_id = ?`
+		const ads = await db.query(query, [req.params.id, req.body.userid])
+		if (ads.length === 0) return res.status(404).json({error: "Ad not found"})
+		res.json(ads[0])
+	} catch (error) {
+		console.error("Error loading ad:", error.message)
+		res.status(500).json({error: "Unable to load ad"})
+	}
 })
 
 // PUT CALL TO UPDATE AN EXISTING ADVERTISEMENT
-router.put("/update/:id", upload.single("file"), authenticateuser, resolvePincodeFromCoordinates, getpincodedetails, async (req, res) => {
+router.put("/update/:id", authenticateToken, upload.single("file"), authenticateuser, resolvePincodeFromCoordinates, getpincodedetails, async (req, res) => {
 	try {
 		const adId = req.params.id;
 		const file = req.file;
@@ -282,7 +286,8 @@ router.put("/pause/:id", authenticateuser, async (req, res) => {
 
 router.get("/activate", authenticateuser, async (req, res) => {
 	
-	const updatequery = `update ads set landing_url = ?, isactive = b'1', remaining = 100 where id = ?`
+	// owner_id check: an advertiser can only activate their own ads
+	const updatequery = `update ads set landing_url = ?, isactive = b'1', remaining = 100 where id = ? and owner_id = ? and (CAST(is_deleted AS UNSIGNED) = 0 or is_deleted is null)`
 	const adId = req.query.id;
 	const landingurl = req.query.landingurl 
 
@@ -295,7 +300,7 @@ router.get("/activate", authenticateuser, async (req, res) => {
 	}
 
 	try {
-		const result = await db.query(updatequery, [landingurl, adId])
+		const result = await db.query(updatequery, [landingurl, adId, req.body.userid])
 		if (result.affectedRows === 0) {
 			return res.status(404).json({message:"Ad not found"})
 		}
@@ -308,7 +313,6 @@ router.get("/activate", authenticateuser, async (req, res) => {
 })
 
 router.post("/getad", authenticateapikey, getAdsByRegion, async (req, res) => { 
-  console.log({'ads':req.body.ads})
 	const ad = req.body.ads && req.body.ads.length > 0 ? req.body.ads[0] : null; 
 	if (!ad) {
 		return res.status(404).json({message: "No ads found for this region."});
@@ -372,14 +376,28 @@ router.post("/getad", authenticateapikey, getAdsByRegion, async (req, res) => {
 	// `);
 } );
 
+// Same visitor + same ad within this window counts as one click (stops accidental double clicks and simple spam).
+const CLICK_DEDUPE_MS = 10 * 1000;
+const recentClicks = new Map();
+
 router.post("/click", async (req, res) => {
   //consider adding appid, pincode, etc in site cache if possible
-  const data = req.body
-  const adid = data.id + '';
+  const data = req.body && typeof req.body === 'object' ? req.body : {}
+  // The SDK is public, so never trust these values: ids must be plain numbers, the rest short strings.
+  if (!/^\d{1,10}$/.test(String(data.id ?? ''))) return res.status(400).send("Invalid ad id")
+  const adid = String(data.id);
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  const appid = data.appid;//
-  const pincode = data.pincode//
-  const timestamp = new Date();// 
+  const appid = data.appid == null ? undefined : String(data.appid).slice(0, 64);
+  const pincode = data.pincode == null ? undefined : String(data.pincode).slice(0, 10);
+  const timestamp = new Date();
+
+  const dedupeKey = `${ip}|${adid}`;
+  const lastClick = recentClicks.get(dedupeKey);
+  if (lastClick && timestamp - lastClick < CLICK_DEDUPE_MS) return res.status(200).send("Thank you for clicking!")
+  recentClicks.set(dedupeKey, timestamp);
+  if (recentClicks.size > 5000) {
+    for (const [key, time] of recentClicks) if (timestamp - time > CLICK_DEDUPE_MS) recentClicks.delete(key);
+  }
   
   const event = { 
     ip,
@@ -389,14 +407,12 @@ router.post("/click", async (req, res) => {
     timestamp
   }
 
-  console.log(event)
   try {
     await db.mongoInsertOne('clicks', event);
   } catch (error) {
     console.log('Error Inserting Click Data :',error)
   }
 
-  console.log(adid, ' Ad was clicked.')
   return res.status(200).send("Thank you for clicking!")
 })
 
