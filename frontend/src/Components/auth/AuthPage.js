@@ -13,7 +13,7 @@ import {
   InputGroup,
   Card
 } from "react-bootstrap";
-import api from "../../api";
+import api, { API_URL } from "../../api";
 import { useNavigate } from "react-router-dom";
 import logo from "../../Naav logo.svg";
 import axios from "axios";
@@ -72,7 +72,7 @@ const AuthPage = ({ setUser }) => {
     e.preventDefault();
     setError("");
     try {
-      const response = await axios.post("http://localhost:5000/user/login", signindata);
+      const response = await axios.post(`${API_URL}/user/login`, signindata);
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("userid", response.data.userid);
       localStorage.setItem("username", response.data.username);
@@ -103,7 +103,7 @@ const AuthPage = ({ setUser }) => {
 
     try {
       const {confirmpassword, ...payload} = signindata;
-      const response = await axios.post("http://localhost:5000/user/create", signupdata);
+      const response = await axios.post(`${API_URL}/user/create`, signupdata);
       alert("Signup successful! You can now log in.");
       setActiveTab("login"); // Redirect to login tab after success
     } catch (err) {
