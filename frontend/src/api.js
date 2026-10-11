@@ -8,8 +8,18 @@ const api = axios.create({
     withCredentials: true,
 });
 
+// Pages anyone can open without signing in. A missing or expired login must never push a visitor off them.
+const PUBLIC_PATHS = ["/", "/login", "/register", "/register/developer"];
+
 function clearSession() {
     ["token", "username", "userid", "usertype"].forEach((key) => localStorage.removeItem(key));
+    const path = window.location.pathname;
+    if (PUBLIC_PATHS.includes(path)) {
+        // Stay on the page. On the home page, reload once so it shows the signed-out version (Get Started button).
+        if (path === "/") window.location.reload();
+        return;
+    }
+    // Any other page needs a login, so go to the login page.
     window.location.href = "/login";
 }
 
