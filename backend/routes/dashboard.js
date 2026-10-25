@@ -3,6 +3,7 @@ const router = express.Router();
 require('dotenv').config()
 const {authenticateuser} = require('../utils/authentication')
 const {buildFocus} = require('../utils/focus')
+const {todayStr, expiryReason} = require('../utils/plans')
 const db = require('../utils/data')
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -61,6 +62,9 @@ router.get("/", authenticateuser, async (req, res) => {
 				SELECT a.id, a.owner_id, a.added_date, a.title, a.description,
 					a.pincode, a.type, a.ad_url, a.landing_url, a.views, a.clicks,
 					a.lastcalled, a.remaining,
+					a.plan, a.plan_views, a.parent_ad_id, a.placement, a.display_level,
+					DATE_FORMAT(a.start_date, '%Y-%m-%d') AS start_date,
+					DATE_FORMAT(a.end_date, '%Y-%m-%d') AS end_date,
 					CAST(a.isactive AS UNSIGNED) AS isactive,
 					CAST(a.is_deleted AS UNSIGNED) AS is_deleted,
 					c.name AS city, d.name AS district, s.name AS state, 'India' AS country
@@ -76,6 +80,9 @@ router.get("/", authenticateuser, async (req, res) => {
 			const fallbackQuery = `
 				SELECT id, owner_id, added_date, title, description, pincode, type,
 					ad_url, landing_url, views, clicks, lastcalled, remaining,
+					plan, plan_views, parent_ad_id, placement, display_level,
+					DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date,
+					DATE_FORMAT(end_date, '%Y-%m-%d') AS end_date,
 					CAST(isactive AS UNSIGNED) AS isactive,
 					CAST(is_deleted AS UNSIGNED) AS is_deleted
 				FROM ads
@@ -93,14 +100,19 @@ router.get("/", authenticateuser, async (req, res) => {
 		}
 
 		// Normalize BIT fields — mysql2 returns BIT(1) as Buffer, not integer
+		const today = todayStr();
 		ads = (ads || []).map(ad => {
 			const t = traffic?.get(String(ad.id));
+			// One rule for "expired" (see utils/plans.js): the end date has passed, or an activated ad has no views left.
+			const reason = expiryReason(ad, today);
+			const isactive = ad.isactive instanceof Buffer ? ad.isactive[0] : Number(ad.isactive);
 			return {
 				...ad,
-				isactive: ad.isactive instanceof Buffer ? ad.isactive[0] : Number(ad.isactive),
-				// An ad that was activated (landing page set) and has no impressions left has expired.
-				// Activating always sets remaining = 100, so a paused ad is never counted as expired.
-				is_expired: Boolean(ad.landing_url) && Number(ad.remaining) === 0 ? 1 : 0,
+				isactive,
+				is_expired: reason ? 1 : 0,
+				expired_reason: reason,
+				// For the status badge: expired / inactive / scheduled (live but starts later) / live
+				status: reason ? 'expired' : !isactive ? 'inactive' : (ad.start_date && ad.start_date > today ? 'scheduled' : 'live'),
 				views: t ? t.views : ad.views,
 				clicks: t ? t.clicks : ad.clicks,
 				views_7d: t?.views7,
