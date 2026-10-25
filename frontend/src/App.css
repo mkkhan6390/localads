@@ -110,3 +110,21 @@
   border-top: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 16px 16px 0 0;
 }
+.date-field .input-group-text {
+  background: #f8faff;
+  border-right: 0;
+  border-radius: 12px 0 0 12px;
+  color: #1a237e;
+}
+.date-field .form-control {
+  background: #f8faff;
+  border-left: 0;
+  border-radius: 0 12px 12px 0;
+  color: #1a237e;
+  font-weight: 500;
+}
+.date-field:focus-within .input-group-text,
+.date-field:focus-within .form-control {
+  border-color: #534AB7;
+  box-shadow: none;
+}
