@@ -1,7 +1,7 @@
 import { Container, Row, Col, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import growthlogo from '../../growth.png';
-import heroBg from '../../hero-bg.png'; // Path to your downloaded background image
+// import growthlogo from '../../growth.png';
+import heroBg from '../../hero-bg2.png'; // Path to your downloaded background image
 
 function Hero({ isLoggedIn }) {
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ function Hero({ isLoggedIn }) {
         position: 'relative',
         overflow: 'hidden',
         // Background image settings
-        backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.85)), url(${heroBg})`,
+        backgroundImage: ` url(${heroBg})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
@@ -51,14 +51,14 @@ function Hero({ isLoggedIn }) {
               </Button>
             </div>
           </Col>
-          <Col lg={6} className="mt-5 mt-lg-0 text-center">
+          {/* <Col lg={6} className="mt-5 mt-lg-0 text-center">
             <img 
               src={growthlogo}
               alt="Platform Growth Chart" 
               className="img-fluid"
               style={{ filter: 'drop-shadow(0 10px 25px rgba(0, 0, 0, 0.5))' }}
             />
-          </Col>
+          </Col> */}
         </Row>
       </Container>
     </div>
