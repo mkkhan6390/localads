@@ -1,14 +1,28 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Container, Navbar, Nav, Button, Row, Col, Card, Badge, Spinner, Alert, Toast, ToastContainer, OverlayTrigger, Popover, Form, Dropdown, ButtonGroup, Modal } from "react-bootstrap";
+import { Container, Navbar, Nav, Button, Row, Col, Card, Badge, Spinner, Alert, Toast, ToastContainer, OverlayTrigger, Popover, Form, Dropdown, ButtonGroup } from "react-bootstrap";
 import api, { API_URL } from "../../api";
 import NewAdModal from "./newAd";
 import ActivateAdModal from "./ActivateAd";
 import Statistics from "./statistics";
-import TodaysFocus from "./TodaysFocus";
 import Profile from "./profile";
 import PublisherApps from "./publisherApps";
-import { BsPlusCircle, BsBoxArrowRight, BsPencil, BsEye, BsCursor, BsMegaphone, BsBarChart, BsPerson, BsGrid, BsSearch, BsSortDown, BsChevronLeft, BsChevronRight } from "react-icons/bs";
+import TodaysFocus from "./TodaysFocus";
+import { PLANS, PLAN_LIST, formatINR, todayStr, maxEndDate } from "../../plans";
+import { BsPlusCircle, BsBoxArrowRight, BsPencil, BsEye, BsCursor, BsMegaphone, BsBarChart, BsPerson, BsGrid, BsSearch, BsSortDown, BsChevronLeft, BsChevronRight, BsCalendar2Event } from "react-icons/bs";
+
+// Formats a DB date ("2025-06-21" or "2025-06-21T00:00:00.000Z") as "Jun 21, 2025".
+// Uses the date part only, so timezone conversion can never shift the day.
+const formatAdDate = (value) => {
+  if (!value) return null;
+  const [y, m, d] = String(value).slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+// A plan can only be used for a re-launch if it includes the old ad's placement and display level.
+const planFitsAd = (plan, ad) =>
+  plan.placements.includes(ad.placement) && Number(ad.display_level) <= plan.maxDisplayLevel;
 
 const Dashboard = ({ user,setLoggedIn }) => {
   const [selectedAdForStats, setSelectedAdForStats] = useState(null);
@@ -36,7 +50,18 @@ const Dashboard = ({ user,setLoggedIn }) => {
   const [showExpiredAuditModal, setShowExpiredAuditModal] = useState(false);
   const [showReLaunchModal, setShowReLaunchModal] = useState(false);
   const [selectedExpiredAd, setSelectedExpiredAd] = useState(null);
-  const [relaunching, setRelaunching] = useState(false);
+  const [reLaunchForm, setReLaunchForm] = useState({
+    title: "",
+    description: "",
+    targetUrl: "",
+    mediaUrl: "",
+    plan: "",
+    startDate: "",
+    endDate: "",
+    error: "",
+    submitting: false,
+    isEditingCreative: false
+  });
 
   const navigate = useNavigate();
   const usertype = user?.usertype || localStorage.getItem("usertype");
@@ -52,7 +77,7 @@ const Dashboard = ({ user,setLoggedIn }) => {
     }
 
     try {
-      const response = await api.get(`${API_URL}/dashboard`, {
+      const response = await api.get("http://localhost:5000/dashboard", {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUserData(response.data);
@@ -90,7 +115,7 @@ const Dashboard = ({ user,setLoggedIn }) => {
       setStatsError("");
       try {
         const userid = localStorage.getItem('userid');
-        const response = await api.post(`${API_URL}/dashboard/stats/${userid}`);
+        const response = await api.post(`http://localhost:5000/dashboard/stats/${userid}`);
         setStats(Array.isArray(response.data) ? response.data : []);
       } catch (err) {
         console.log(err);
@@ -146,42 +171,70 @@ const handleDetailsButton = (adId) => {
   setActiveTab("stats");
 };
 
-  // Buttons on the Today's Focus card. They only open screens the user already has.
+  // Today's Focus buttons: open the same screens the ad cards already use
   const handleFocusAction = (item) => {
-    const adId = String(item.adid);
-    if (item.action === "activate") {
-      setSelectedAd(adId);
-      setShowActivateAdModal(true);
-    } else if (item.action === "edit") {
-      setSelectedAd(adId);
-      setShowNewAdModal(true);
-    } else if (item.action === "relaunch") {
-      const ad = (userData?.ads || []).find((a) => String(a.id) === adId);
-      if (ad) {
-        setSelectedExpiredAd(ad);
-        setShowReLaunchModal(true);
-      }
-    } else {
-      handleDetailsButton(item.adid);
+    const ad = userData?.ads?.find(a => String(a.id) === String(item.adid));
+    if (!ad) return;
+    if (item.action === "stats") {
+      handleDetailsButton(ad.id);
+      return;
     }
+    if (item.action === "relaunch") {
+      setSelectedExpiredAd(ad);
+      setShowExpiredAuditModal(true);
+      return;
+    }
+    setSelectedAd(String(ad.id)); // same shape the Edit / Activate buttons use
+    if (item.action === "edit") setShowNewAdModal(true);
+    if (item.action === "activate") setShowActivateAdModal(true);
   };
 
-  // Relaunch = activate the same ad again (same image, text and landing page). The server gives it a fresh batch of impressions.
-  const handleRelaunch = async () => {
+  // Re-Launch: pick a plan, the dates follow the plan, then the server creates the new ad from the expired one.
+  const chooseReLaunchPlan = (planKey) => {
+    const start = reLaunchForm.startDate && reLaunchForm.startDate >= todayStr() ? reLaunchForm.startDate : todayStr();
+    setReLaunchForm((prev) => ({ ...prev, plan: planKey, startDate: start, endDate: maxEndDate(planKey, start), error: "" }));
+  };
+
+  const changeReLaunchStart = (start) => {
+    setReLaunchForm((prev) => {
+      let end = prev.endDate;
+      if (prev.plan && start) {
+        const latest = maxEndDate(prev.plan, start);
+        if (!end || end < start || end > latest) end = latest;
+      }
+      return { ...prev, startDate: start, endDate: end, error: "" };
+    });
+  };
+
+  const submitReLaunch = async () => {
     if (!selectedExpiredAd) return;
-    setRelaunching(true);
+    if (!reLaunchForm.plan) {
+      setReLaunchForm((prev) => ({ ...prev, error: "Please choose a plan." }));
+      return;
+    }
+    if (!reLaunchForm.startDate || !reLaunchForm.endDate) {
+      setReLaunchForm((prev) => ({ ...prev, error: "Please pick the start and end dates." }));
+      return;
+    }
+    setReLaunchForm((prev) => ({ ...prev, submitting: true, error: "" }));
     try {
-      await api.get(`${API_URL}/ad/activate?id=${selectedExpiredAd.id}&landingurl=${encodeURIComponent(selectedExpiredAd.landing_url)}`);
+      const token = localStorage.getItem("token");
+      const res = await api.post(`${API_URL}/ad/relaunch/${selectedExpiredAd.id}`, {
+        plan: reLaunchForm.plan,
+        startdate: reLaunchForm.startDate,
+        enddate: reLaunchForm.endDate,
+        title: reLaunchForm.title,
+        description: reLaunchForm.description,
+        landingurl: reLaunchForm.targetUrl,
+      }, { headers: { authorization: `Bearer ${token}` } });
       setShowReLaunchModal(false);
-      setShowExpiredAuditModal(false);
-      setToastMessage("Ad relaunched. It is live again.");
+      setToastMessage(res.data?.message || "New campaign version successfully launched!");
       setShowToast(true);
       fetchData();
     } catch (err) {
-      setToastMessage(err.response?.data?.message || "Could not relaunch this ad. Please try again.");
-      setShowToast(true);
+      setReLaunchForm((prev) => ({ ...prev, error: err.response?.data?.error || "Could not re-launch this ad. Please try again." }));
     } finally {
-      setRelaunching(false);
+      setReLaunchForm((prev) => ({ ...prev, submitting: false }));
     }
   };
 
@@ -498,8 +551,8 @@ const handleDetailsButton = (adId) => {
                 </div>
 
                 <TodaysFocus
-                  items={userData.focus}
-                  hasAds={Boolean(userData.ads && userData.ads.length > 0)}
+                  items={userData.focus || []}
+                  hasAds={totalAdsCount > 0}
                   onAction={handleFocusAction}
                 />
 
@@ -704,6 +757,8 @@ const handleDetailsButton = (adId) => {
                               <div className="position-absolute top-0 end-0 m-3" style={{ zIndex: 10 }}>
                                 {(Number(ad.is_expired) === 1 || ad.status === 'expired') ? (
                                   <Badge pill bg="danger" className="px-3 py-2">EXPIRED</Badge>
+                                ) : ad.status === 'scheduled' ? (
+                                  <Badge pill bg="info" className="px-3 py-2">Scheduled</Badge>
                                 ) : Number(ad.isactive) === 1 ? (
                                   <Badge pill bg="success" className="px-3 py-2">✓ Active</Badge>
                                 ) : (
@@ -729,6 +784,22 @@ const handleDetailsButton = (adId) => {
                                       <BsCursor className="me-1 text-primary" /> {ad.clicks ?? 0} clicks
                                     </span>
                                   </div>
+
+                                  {(ad.start_date || ad.end_date) && (
+                                    <div className="small text-muted d-flex align-items-center mt-2">
+                                      <BsCalendar2Event className="me-1 text-primary" />
+                                      {formatAdDate(ad.start_date) || "Starts now"} &rarr; {formatAdDate(ad.end_date) || "No end date"}
+                                    </div>
+                                  )}
+
+                                  {PLANS[ad.plan] && (
+                                    <div className="small text-muted mt-2">
+                                      <Badge bg="light" text="dark" className="border">{PLANS[ad.plan].name} plan</Badge>
+                                      {ad.landing_url && Number(ad.is_expired) !== 1 && (
+                                        <span className="ms-2">{Number(ad.remaining ?? 0).toLocaleString('en-IN')} views left</span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
 
@@ -943,63 +1014,193 @@ const handleDetailsButton = (adId) => {
         </Container>
       ) : null}
 
-      {/* Expired ad: real lifetime numbers, then a real relaunch */}
-      <Modal show={showExpiredAuditModal && !!selectedExpiredAd} onHide={() => setShowExpiredAuditModal(false)} centered size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title as="h5" className="fw-bold">Expired ad: {selectedExpiredAd?.title}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedExpiredAd && (() => {
-            const views = Number(selectedExpiredAd.views) || 0;
-            const clicks = Number(selectedExpiredAd.clicks) || 0;
-            const ctr = views > 0 ? `${((clicks / views) * 100).toFixed(2)}%` : "n/a";
-            return (
-              <>
+      {/* 1. Expired Campaign Audit Modal */}
+      {selectedExpiredAd && (
+        <div className={`modal fade ${showExpiredAuditModal ? 'show d-block' : 'd-none'}`} tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content rounded-4 p-3 border-0">
+              <div className="modal-header border-0 pb-0">
+                <h5 className="fw-bold">Expired Campaign Audit: {selectedExpiredAd.title} (ID: #{selectedExpiredAd.id || 'AD1045'})</h5>
+                <button type="button" className="btn-close" onClick={() => setShowExpiredAuditModal(false)}></button>
+              </div>
+              <div className="modal-body">
                 <div className="p-3 mb-3 bg-light rounded-3">
-                  <span className="text-muted small fw-semibold d-block mb-2">Lifetime results</span>
+                  <span className="text-muted small fw-semibold d-block mb-2">Cumulative Lifetime Metrics</span>
                   <Row className="text-center g-2">
-                    <Col><div className="bg-white p-2 rounded shadow-sm"><strong>Views</strong><div className="fs-5 fw-bold text-primary">{views.toLocaleString()}</div></div></Col>
-                    <Col><div className="bg-white p-2 rounded shadow-sm"><strong>Clicks</strong><div className="fs-5 fw-bold">{clicks.toLocaleString()}</div></div></Col>
-                    <Col><div className="bg-white p-2 rounded shadow-sm"><strong>Click rate</strong><div className="fs-5 fw-bold text-success">{ctr}</div></div></Col>
+                    <Col><div className="bg-white p-2 rounded shadow-sm"><strong>Total Views</strong><div className="fs-5 fw-bold text-primary">{Number(selectedExpiredAd.views ?? 0).toLocaleString('en-IN')}</div></div></Col>
+                    <Col><div className="bg-white p-2 rounded shadow-sm"><strong>Clicks</strong><div className="fs-5 fw-bold">{Number(selectedExpiredAd.clicks ?? 0).toLocaleString('en-IN')}</div></div></Col>
+                    <Col><div className="bg-white p-2 rounded shadow-sm"><strong>CTR</strong><div className="fs-5 fw-bold text-success">{Number(selectedExpiredAd.views) > 0 ? ((Number(selectedExpiredAd.clicks ?? 0) / Number(selectedExpiredAd.views)) * 100).toFixed(2) + '%' : '-'}</div></div></Col>
                   </Row>
                 </div>
+
                 <Row className="g-3 align-items-center">
-                  <Col md={5}>
-                    <img src={selectedExpiredAd.ad_url} alt={selectedExpiredAd.title || "Ad preview"} className="w-100 rounded" style={{ maxHeight: 140, objectFit: "cover" }} />
-                  </Col>
                   <Col md={7}>
-                    <p className="small mb-1">{selectedExpiredAd.description}</p>
-                    <p className="small text-muted mb-0 text-break">Landing page: {selectedExpiredAd.landing_url}</p>
+                    <div className="border p-3 rounded-3 bg-white">
+                      <span className="small text-muted fw-semibold">Campaign details</span>
+                      <div className="small mt-2">
+                        <div><strong>Plan:</strong> {PLANS[selectedExpiredAd.plan] ? `${PLANS[selectedExpiredAd.plan].name} (${PLANS[selectedExpiredAd.plan].views.toLocaleString('en-IN')} views)` : 'Made before plans'}</div>
+                        <div><strong>Ran:</strong> {formatAdDate(selectedExpiredAd.start_date) || 'From activation'} &rarr; {formatAdDate(selectedExpiredAd.end_date) || 'No end date'}</div>
+                        <div><strong>Ended because:</strong> {selectedExpiredAd.expired_reason === 'date' ? 'Its end date passed' : 'All its views were used'}</div>
+                        <div><strong>Views left:</strong> {Number(selectedExpiredAd.remaining ?? 0).toLocaleString('en-IN')}{selectedExpiredAd.expired_reason === 'date' && Number(selectedExpiredAd.remaining) > 0 ? ' (unused views end with the plan)' : ''}</div>
+                      </div>
+                    </div>
+                  </Col>
+                  <Col md={5}>
+                    <div className="border p-3 rounded-3 bg-white">
+                      <span className="small text-muted fw-semibold">Read-only preview</span>
+                      <img src={selectedExpiredAd.ad_url} alt="" className="w-100 rounded mt-2" style={{ height: 90, objectFit: 'cover' }} />
+                      <p className="small text-muted mt-2 mb-0">{selectedExpiredAd.description}</p>
+                    </div>
                   </Col>
                 </Row>
-              </>
-            );
-          })()}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" onClick={() => { setShowExpiredAuditModal(false); handleDetailsButton(selectedExpiredAd?.id); }}>
-            Full analytics
-          </Button>
-          <Button variant="success" onClick={() => setShowReLaunchModal(true)}>
-            Relaunch this ad
-          </Button>
-        </Modal.Footer>
-      </Modal>
+              </div>
+              <div className="modal-footer border-0 pt-0">
+                <Button
+                  variant="success"
+                  className="w-100 py-2 fw-semibold border-0"
+                  onClick={() => {
+                    setShowExpiredAuditModal(false);
+                    setReLaunchForm({
+                      title: selectedExpiredAd.title,
+                      description: selectedExpiredAd.description,
+                      targetUrl: selectedExpiredAd.landing_url || "",
+                      mediaUrl: selectedExpiredAd.ad_url,
+                      // Suggest the plan the ad had before, if it still fits the ad's placement and area
+                      plan: PLANS[selectedExpiredAd.plan] && planFitsAd(PLANS[selectedExpiredAd.plan], selectedExpiredAd) ? selectedExpiredAd.plan : "",
+                      startDate: todayStr(),
+                      endDate: PLANS[selectedExpiredAd.plan] && planFitsAd(PLANS[selectedExpiredAd.plan], selectedExpiredAd) ? maxEndDate(selectedExpiredAd.plan, todayStr()) : "",
+                      error: "",
+                      submitting: false,
+                      isEditingCreative: false
+                    });
+                    setShowReLaunchModal(true);
+                  }}
+                >
+                  Re-Launch This Ad
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-      <Modal show={showReLaunchModal && !!selectedExpiredAd} onHide={() => !relaunching && setShowReLaunchModal(false)} centered>
-        <Modal.Header closeButton={!relaunching}>
-          <Modal.Title as="h5" className="fw-bold">Relaunch "{selectedExpiredAd?.title}"?</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          It will go live again with the same image, text and landing page, and get a fresh batch of impressions.
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" disabled={relaunching} onClick={() => setShowReLaunchModal(false)}>Cancel</Button>
-          <Button variant="success" disabled={relaunching} onClick={handleRelaunch}>
-            {relaunching ? <Spinner size="sm" animation="border" /> : "Relaunch"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      {/* 2. Re-Launch New Version Modal */}
+      <div className={`modal fade ${showReLaunchModal ? 'show d-block' : 'd-none'}`} tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-content rounded-4 p-3 border-0">
+            <div className="modal-header border-0 pb-0">
+              <h5 className="fw-bold">Re-Launch: {reLaunchForm.title} (New Version)</h5>
+              <button type="button" className="btn-close" onClick={() => setShowReLaunchModal(false)}></button>
+            </div>
+            <div className="modal-body">
+              <Form>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <Form.Label className="small fw-semibold mb-0">Campaign Title</Form.Label>
+                  <Button
+                    size="sm"
+                    variant="outline-primary"
+                    className="py-0 px-2"
+                    style={{ fontSize: 11 }}
+                    onClick={() => setReLaunchForm(prev => ({ ...prev, isEditingCreative: !prev.isEditingCreative }))}
+                  >
+                    Edit Ad Copy & Creative
+                  </Button>
+                </div>
+                <Form.Control
+                  type="text"
+                  value={reLaunchForm.title}
+                  disabled={!reLaunchForm.isEditingCreative}
+                  onChange={(e) => setReLaunchForm({ ...reLaunchForm, title: e.target.value })}
+                  className="mb-3"
+                />
+
+                <Form.Label className="small fw-semibold">Ad Description</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  value={reLaunchForm.description}
+                  disabled={!reLaunchForm.isEditingCreative}
+                  onChange={(e) => setReLaunchForm({ ...reLaunchForm, description: e.target.value })}
+                  className="mb-3"
+                />
+
+                <Form.Label className="small fw-semibold">Target URL</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={reLaunchForm.targetUrl}
+                  disabled={!reLaunchForm.isEditingCreative}
+                  onChange={(e) => setReLaunchForm({ ...reLaunchForm, targetUrl: e.target.value })}
+                  className="mb-3"
+                />
+
+                <Form.Label className="small fw-semibold">Choose a plan</Form.Label>
+                <Row className="g-2 mb-3">
+                  {PLAN_LIST.map((p) => {
+                    const fits = selectedExpiredAd ? planFitsAd(p, selectedExpiredAd) : true;
+                    const chosen = reLaunchForm.plan === p.key;
+                    return (
+                      <Col key={p.key} xs={4}>
+                        <div
+                          role="button"
+                          onClick={() => fits && chooseReLaunchPlan(p.key)}
+                          className="p-2 rounded h-100"
+                          style={{
+                            border: chosen ? '2px solid #198754' : '1px solid #cbd5e1',
+                            background: chosen ? '#e8f5ee' : '#fff',
+                            opacity: fits ? 1 : 0.45,
+                            cursor: fits ? 'pointer' : 'not-allowed',
+                          }}
+                        >
+                          <strong>{p.name}</strong>
+                          <div className="small">{formatINR(p.price)}</div>
+                          <div className="small text-muted">{p.views.toLocaleString('en-IN')} views, up to {p.days} day{p.days > 1 ? 's' : ''}</div>
+                          {!fits && <div className="small text-danger">Does not include this ad's placement or area</div>}
+                        </div>
+                      </Col>
+                    );
+                  })}
+                </Row>
+
+                <Form.Label className="small fw-semibold">New Run Dates</Form.Label>
+                <Row className="g-2 mb-1">
+                  <Col>
+                    <Form.Control
+                      type="date"
+                      value={reLaunchForm.startDate}
+                      min={todayStr()}
+                      onChange={(e) => changeReLaunchStart(e.target.value)}
+                    />
+                  </Col>
+                  <Col>
+                    <Form.Control
+                      type="date"
+                      value={reLaunchForm.endDate}
+                      min={reLaunchForm.startDate || undefined}
+                      max={reLaunchForm.plan && reLaunchForm.startDate ? maxEndDate(reLaunchForm.plan, reLaunchForm.startDate) : undefined}
+                      onChange={(e) => setReLaunchForm({ ...reLaunchForm, endDate: e.target.value, error: "" })}
+                    />
+                  </Col>
+                </Row>
+                <div className="text-muted mb-3" style={{ fontSize: 11 }}>
+                  The ad stops when its views run out or its end date passes, whichever comes first.
+                </div>
+                {reLaunchForm.error && <Alert variant="danger" className="py-2 small">{reLaunchForm.error}</Alert>}
+                <span className="text-muted" style={{ fontSize: 11 }}>Parent Ad: #{selectedExpiredAd?.id || 'AD1045'} (Frozen History)</span>
+              </Form>
+            </div>
+            <div className="modal-footer border-0 pt-0">
+              <Button
+                variant="success"
+                className="w-100 py-2 fw-semibold border-0"
+                onClick={submitReLaunch}
+                disabled={reLaunchForm.submitting}
+              >
+                {reLaunchForm.submitting ? "Launching..." : "Launch New Version"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <ActivateAdModal
         setShowActivateAdModal={setShowActivateAdModal}
