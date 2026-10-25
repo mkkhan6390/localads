@@ -28,7 +28,10 @@ function buildFocus(ads, now = Date.now()) {
 		const trafficKnown = typeof ad.views_7d === 'number';
 
 		if (ad.is_expired) {
-			items.push({ ...base, priority: 'high', action: 'relaunch', reason: 'Ran out of impressions and is no longer being shown. Relaunch it to keep running.' });
+			const why = ad.expired_reason === 'date'
+				? 'Its end date has passed and it is no longer being shown. Relaunch it with new dates.'
+				: 'Ran out of impressions and is no longer being shown. Relaunch it to keep running.';
+			items.push({ ...base, priority: 'high', action: 'relaunch', reason: why });
 			continue;
 		}
 
@@ -38,6 +41,9 @@ function buildFocus(ads, now = Date.now()) {
 			}
 			continue; // a paused ad is the owner's choice, so no nagging
 		}
+
+		// Switched on but its start date has not arrived yet: nothing to check until it starts.
+		if (ad.status === 'scheduled') continue;
 
 		const remaining = Number(ad.remaining);
 		if (remaining > 0 && remaining <= LOW_REMAINING) {
