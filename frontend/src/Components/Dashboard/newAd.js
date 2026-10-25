@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api, { API_URL } from '../../api';
+import { PLANS, PLAN_LIST, PLACEMENT_NAMES, DISPLAY_LEVELS, todayStr, spanDays, maxEndDate, datePresets, formatINR, formatDay } from '../../plans';
 import { 
   Button, 
   Modal, 
@@ -8,11 +9,12 @@ import {
   Row, 
   Col, 
   Alert, 
-  Spinner 
+  Spinner, 
+  InputGroup 
 } from 'react-bootstrap';
 import { 
   BsUpload, BsCheck2Circle, BsImage, BsTag, BsLayers, 
-  BsPencilSquare, BsCardText, BsGeoAlt, BsCheck 
+  BsPencilSquare, BsCardText, BsGeoAlt, BsCheck, BsCalendar2Event 
 } from 'react-icons/bs';
 
 // Placement Requirements Table — explicit image specifications enforced
@@ -226,7 +228,10 @@ function NewAdModal(props) {
     longitude: '',
     displaylevel: '',
     type: '',
-    placement: ''
+    placement: '',
+    startdate: '',
+    enddate: '',
+    plan: ''
   };
 
   const [formValues, setFormValues] = useState(initialFormState);
@@ -255,6 +260,73 @@ function NewAdModal(props) {
 
   // Evaluates to true if adId exists and is valid
   const isEditMode = Boolean(adId && Number(adId) > 0);
+
+  // The plan picked for this ad (new ad) or the plan it was bought with (edit). An ad made before plans
+  // has no plan and keeps the old form without limits.
+  const selectedPlan = PLANS[formValues.plan] || null;
+  const today = todayStr();
+  const levelLabel = (n) => DISPLAY_LEVELS.find((l) => l.value === String(n))?.label;
+
+  // Dates must follow the plan: both filled in, not in the past (new ads), end not before start,
+  // and no longer than the plan's days.
+  const getDateErrors = () => {
+    if (!selectedPlan) return {};
+    const { startdate, enddate } = formValues;
+    if (!startdate || !enddate) return { dates: 'Pick the dates for your ad, or use a quick choice.' };
+    if (!isEditMode && startdate < today) return { dates: 'The start date cannot be in the past.' };
+    if (enddate < startdate) return { dates: 'The end date cannot be before the start date.' };
+    if (spanDays(startdate, enddate) > selectedPlan.days) {
+      return { dates: `The ${selectedPlan.name} plan runs for up to ${selectedPlan.days} day${selectedPlan.days > 1 ? 's' : ''}.` };
+    }
+    return {};
+  };
+
+  // Choosing a plan decides what the rest of the form offers: placements, display levels and dates.
+  const handlePlanSelect = (planKey) => {
+    if (isEditMode) return; // the plan of a saved ad is fixed
+    const plan = PLANS[planKey];
+    const placementAllowed = !formValues.placement || plan.placements.includes(formValues.placement);
+    const first = datePresets(planKey)[0];
+    setFormValues((prev) => ({
+      ...prev,
+      plan: planKey,
+      placement: placementAllowed ? prev.placement : '',
+      file: placementAllowed ? prev.file : null,
+      displaylevel: Number(prev.displaylevel) > plan.maxDisplayLevel ? '' : prev.displaylevel,
+      startdate: first.start,
+      enddate: first.end,
+    }));
+    if (!placementAllowed) {
+      setImageSpecCheck(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+    setErrors((prev) => ({ ...prev, plan: '', dates: '' }));
+  };
+
+  const applyDatePreset = (preset) => {
+    setFormValues((prev) => ({ ...prev, startdate: preset.start, enddate: preset.end }));
+    setErrors((prev) => ({ ...prev, dates: '' }));
+  };
+
+  // Moving the start date keeps the end date inside the plan's length.
+  const handleStartDateChange = (e) => {
+    const start = e.target.value;
+    setFormValues((prev) => {
+      let end = prev.enddate;
+      if (selectedPlan && start) {
+        const latest = maxEndDate(selectedPlan.key, start);
+        if (!end || end < start || end > latest) end = latest;
+      }
+      return { ...prev, startdate: start, enddate: end };
+    });
+    setErrors((prev) => ({ ...prev, dates: '' }));
+  };
+
+  const handleEndDateChange = (e) => {
+    const end = e.target.value;
+    setFormValues((prev) => ({ ...prev, enddate: end }));
+    setErrors((prev) => ({ ...prev, dates: '' }));
+  };
 
   useEffect(() => {
     if (props.showNewAdModal) {
@@ -290,7 +362,10 @@ function NewAdModal(props) {
               // DB column is "display_level", map it to form field "displaylevel"
               displaylevel: ad.display_level?.toString() || ad.displaylevel?.toString() || '',
               type: ad.type || '',
-              placement: ad.placement || ''
+              placement: ad.placement || '',
+              startdate: ad.startdate_str || '',
+              enddate: ad.enddate_str || '',
+              plan: ad.plan || ''
             });
             // Store the existing image URL so we can show a preview
             if (ad.ad_url) {
@@ -315,8 +390,10 @@ function NewAdModal(props) {
 
   const validateForm = () => {
     const newErrors = {};
+    if (!isEditMode && !formValues.plan) newErrors.plan = 'Please choose a plan.';
     if (!formValues.type) newErrors.type = 'Please select an ad type.';
     if (!formValues.placement) newErrors.placement = 'Please select a placement.';
+    Object.assign(newErrors, getDateErrors());
     // File is required only for new ads, not when editing (existing image stays)
     if (!formValues.file && !isEditMode) newErrors.file = 'Please upload a file.';
     if (!formValues.title) newErrors.title = 'Title is required.';
@@ -332,6 +409,7 @@ function NewAdModal(props) {
   const validateStep = (step) => {
     const newErrors = {};
     if (step === 1) {
+      if (!isEditMode && !formValues.plan) newErrors.plan = 'Please choose a plan.';
       if (!formValues.type) newErrors.type = 'Please select an ad type.';
       if (!formValues.placement) newErrors.placement = 'Please select a placement.';
       if (!formValues.file && !isEditMode) newErrors.file = 'Please upload a file.';
@@ -340,6 +418,7 @@ function NewAdModal(props) {
       if (!formValues.description) newErrors.description = 'Description is required.';
       if (!/^[1-9][0-9]{5}$/.test(formValues.pincode)) newErrors.pincode = 'Enter a valid 6-digit pincode.';
       if (!formValues.displaylevel) newErrors.displaylevel = 'Please select a display level.';
+      Object.assign(newErrors, getDateErrors());
     }
     setErrors((prev) => ({ ...prev, ...newErrors }));
     return Object.keys(newErrors).length === 0;
@@ -657,6 +736,9 @@ function NewAdModal(props) {
     }
     formData.append('displaylevel', formValues.displaylevel);
     formData.append('userid', userId);
+    formData.append('startdate', formValues.startdate || '');
+    formData.append('enddate', formValues.enddate || '');
+    if (formValues.plan) formData.append('plan', formValues.plan);
     
     // Only append file if user selected a new one
     if (formValues.file) {
@@ -844,6 +926,46 @@ function NewAdModal(props) {
               <Form onSubmit={handleSubmit}>
                 {currentStep === 1 && (
                   <div>
+                    {/* Plan comes first: it decides which placements, display levels and dates are offered below */}
+                    <Form.Group className="mb-3">
+                      <Form.Label><BsTag className="me-2" />{isEditMode ? 'Plan' : 'Choose your plan'}</Form.Label>
+                      {!isEditMode || selectedPlan ? (
+                        <Row className="g-2">
+                          {(isEditMode ? [selectedPlan] : PLAN_LIST).map((p) => {
+                            const chosen = formValues.plan === p.key;
+                            return (
+                              <Col key={p.key} md={isEditMode ? 12 : 4}>
+                                <div
+                                  role={isEditMode ? undefined : 'button'}
+                                  onClick={() => handlePlanSelect(p.key)}
+                                  className="h-100 p-2 rounded"
+                                  style={{
+                                    border: chosen ? '2px solid #6366f1' : '1px solid #cbd5e1',
+                                    background: chosen ? '#eef2ff' : '#fff',
+                                    cursor: isEditMode ? 'default' : 'pointer',
+                                  }}
+                                >
+                                  <div className="d-flex justify-content-between align-items-baseline">
+                                    <strong>{p.name}</strong>
+                                    <span className="fw-bold" style={{ color: '#4f46e5' }}>{formatINR(p.price)}</span>
+                                  </div>
+                                  <div className="small text-muted">{p.tagline}</div>
+                                  <div className="small mt-1">Up to {p.days} day{p.days > 1 ? 's' : ''} · {p.views.toLocaleString('en-IN')} views</div>
+                                  <div className="small text-muted">
+                                    {p.maxDisplayLevel === 1 ? 'City level' : `Up to ${levelLabel(p.maxDisplayLevel)} level`} · {p.placements.map((k) => PLACEMENT_NAMES[k]).join(', ')}
+                                  </div>
+                                </div>
+                              </Col>
+                            );
+                          })}
+                        </Row>
+                      ) : (
+                        <small className="text-muted d-block">This ad was made before plans existed, so it has no plan limits.</small>
+                      )}
+                      {isEditMode && selectedPlan && <small className="text-muted d-block mt-1">The plan of a saved ad cannot be changed.</small>}
+                      {errors.plan && <div className="text-danger small mt-1">{errors.plan}</div>}
+                    </Form.Group>
+
                     <Form.Group className="mb-3">
                       <Form.Label><BsTag className="me-2" />Ad Type</Form.Label>
                       <Form.Select name="type" value={formValues.type} onChange={handleChange} isInvalid={!!errors.type}>
@@ -857,9 +979,9 @@ function NewAdModal(props) {
 
                     <Form.Group className="mb-3">
                       <Form.Label><BsLayers className="me-2" />Placement</Form.Label>
-                      <Form.Select name="placement" value={formValues.placement} onChange={handleChange} isInvalid={!!errors.placement}>
-                        <option value="">Select Placement</option>
-                        {Object.entries(PLACEMENT_SPECS).map(([key, spec]) => (
+                      <Form.Select name="placement" value={formValues.placement} onChange={handleChange} isInvalid={!!errors.placement} disabled={!isEditMode && !formValues.plan}>
+                        <option value="">{!isEditMode && !formValues.plan ? 'Choose a plan first' : 'Select Placement'}</option>
+                        {Object.entries(PLACEMENT_SPECS).filter(([key]) => !selectedPlan || selectedPlan.placements.includes(key)).map(([key, spec]) => (
                           <option key={key} value={key}>{spec.label}</option>
                         ))}
                       </Form.Select>
@@ -919,14 +1041,53 @@ function NewAdModal(props) {
                           <Form.Label><BsLayers className="me-2" />Display Level</Form.Label>
                           <Form.Select name="displaylevel" value={formValues.displaylevel} onChange={handleChange} isInvalid={!!errors.displaylevel}>
                             <option value="">Select Level</option>
-                            <option value="1">City</option>
-                            <option value="2">District</option>
-                            <option value="3">State</option>
-                            <option value="4">Country</option>
+                            {DISPLAY_LEVELS.filter((l) => !selectedPlan || Number(l.value) <= selectedPlan.maxDisplayLevel).map((l) => (
+                              <option key={l.value} value={l.value}>{l.label}</option>
+                            ))}
                           </Form.Select>
                         </Form.Group>
                       </Col>
                     </Row>
+
+                    <Row>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label className="fw-semibold">Start Date</Form.Label>
+                          <InputGroup className="date-field">
+                            <InputGroup.Text><BsCalendar2Event /></InputGroup.Text>
+                            <Form.Control type="date" name="startdate" value={formValues.startdate} onChange={handleStartDateChange} min={!isEditMode && selectedPlan ? today : undefined} isInvalid={!!errors.dates} />
+                          </InputGroup>
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label className="fw-semibold">End Date</Form.Label>
+                          <InputGroup className="date-field">
+                            <InputGroup.Text><BsCalendar2Event /></InputGroup.Text>
+                            <Form.Control type="date" name="enddate" value={formValues.enddate} onChange={handleEndDateChange} min={formValues.startdate || undefined} max={selectedPlan && formValues.startdate ? maxEndDate(selectedPlan.key, formValues.startdate) : undefined} isInvalid={!!errors.dates} />
+                          </InputGroup>
+                        </Form.Group>
+                      </Col>
+                    </Row>
+
+                    {selectedPlan && (
+                      <div className="mb-3">
+                        {!isEditMode && (
+                          <div className="d-flex flex-wrap align-items-center gap-2">
+                            <small className="text-muted">Quick choice:</small>
+                            {datePresets(selectedPlan.key).map((preset) => (
+                              <Button key={preset.label} size="sm" variant="outline-primary" type="button" onClick={() => applyDatePreset(preset)}>
+                                {preset.label}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
+                        <small className="text-muted d-block mt-1">
+                          The {selectedPlan.name} plan runs for up to {selectedPlan.days} day{selectedPlan.days > 1 ? 's' : ''}. The last possible end date is set for you.
+                        </small>
+                        {errors.dates && <div className="text-danger small mt-1">{errors.dates}</div>}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -937,7 +1098,17 @@ function NewAdModal(props) {
                       <p className="mb-1 text-success fw-bold">✓ Media &amp; Information Ready</p>
                       <p className="mb-1"><strong>Title:</strong> {formValues.title || 'Untitled'}</p>
                       <p className="mb-1"><strong>Placement:</strong> {selectedPlacementSpec ? selectedPlacementSpec.label : 'Not set'}</p>
-                      <p className="mb-0"><strong>Target Pincode:</strong> {formValues.pincode || 'Not set'}</p>
+                      <p className={selectedPlan ? 'mb-1' : 'mb-0'}><strong>Target Pincode:</strong> {formValues.pincode || 'Not set'}</p>
+                      {selectedPlan && (
+                        <>
+                          <p className="mb-1"><strong>Plan:</strong> {selectedPlan.name} · {selectedPlan.views.toLocaleString('en-IN')} views · {formatINR(selectedPlan.price)}</p>
+                          <p className="mb-1"><strong>Runs:</strong> {formatDay(formValues.startdate)} to {formatDay(formValues.enddate)}</p>
+                          <p className="mb-0 small text-muted">
+                            The ad stops when its views run out or its end date passes, whichever comes first. Unused views are not carried over.
+                            {!isEditMode && ' Payment is not connected yet, so nothing is charged for now.'}
+                          </p>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
