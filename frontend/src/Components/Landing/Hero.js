@@ -1,10 +1,23 @@
+import { useState, useEffect } from 'react';
 import { Container, Row, Col, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 // import growthlogo from '../../growth.png';
 import heroBg from '../../hero-bg2.png'; // Path to your downloaded background image
+import heroBg3 from '../../hero-bg3.png'; // 2nd slide: Digital Village
+
+const heroSlides = [heroBg, heroBg3];
+const SLIDE_INTERVAL = 5000; // 5 seconds per image
 
 function Hero({ isLoggedIn }) {
   const navigate = useNavigate();
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % heroSlides.length);
+    }, SLIDE_INTERVAL);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleStartAdvertising = () => {
     navigate(isLoggedIn() ? '/dashboard' : '/login');
@@ -24,14 +37,36 @@ function Hero({ isLoggedIn }) {
         marginTop: '76px',
         position: 'relative',
         overflow: 'hidden',
-        // Background image settings
-        backgroundImage: ` url(${heroBg})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
+        backgroundColor: '#0b1b3a',
         color: '#f8fafc',
       }}
     >
+      {/* Background slides (stay inside the hero, so they never touch the navbar) */}
+      {heroSlides.map((img, i) => (
+        <div
+          key={i}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: `url(${img})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            opacity: activeSlide === i ? 1 : 0,
+            transition: 'opacity 1.2s ease-in-out',
+            zIndex: 0,
+          }}
+        />
+      ))}
+      {/* Dark gradient on the left so the heading stays readable on both images */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(90deg, rgba(5,15,40,0.8) 0%, rgba(5,15,40,0.45) 45%, rgba(5,15,40,0) 70%)',
+          zIndex: 0,
+        }}
+      />
       <Container className="py-5" style={{ position: 'relative', zIndex: 1 }}>
         <Row className="align-items-center">
           <Col lg={6} className="text-center text-lg-start">
